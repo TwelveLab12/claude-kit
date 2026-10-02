@@ -27,3 +27,11 @@ Strict : `strict`, `noUncheckedIndexedAccess`, `noUnusedLocals`, `noUnusedParame
 
 La version installée peut être plus récente que tes connaissances : lire le guide concerné dans
 `node_modules/next/dist/docs/` avant d'utiliser une API dont tu n'es pas sûr (voir `AGENTS.md`).
+
+## Faits dérivés
+
+Un chiffre ou un fait affiché qui se déduit d'une source déjà présente dans le dépôt (une date, un
+dossier, une liste) est **calculé** au build ou au rendu, jamais tapé en dur : il serait exact
+aujourd'hui et faux demain (« 5 ans d'expérience », « 12 décisions documentées »…). Avant d'écrire
+un nombre, vérifier s'il est dérivable. Exception : un contenu daté par nature (article publié,
+changelog) reste un instantané.
