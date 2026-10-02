@@ -16,6 +16,11 @@ qu'au dev/build/typegen, et sans eux `tsc` échoue sur un clone frais.
 **Baseline avant tout commit** (c'est ce que la CI vérifie, ce n'est pas optionnel) :
 {{baselineChecks}}.
 
+Version de Node : {{#if volta}}épinglée par Volta dans `package.json` (champ `volta`), que Volta
+applique en local et que la CI lit aussi. La changer avec `volta pin node@<version>`, jamais en
+ajoutant un `.nvmrc` (deux sources finiraient par diverger).{{/if}}{{#if nodeFromNvmrc}}`.nvmrc`, lu
+aussi par la CI.{{/if}}
+
 ## TypeScript
 
 Strict : `strict`, `noUncheckedIndexedAccess`, `noUnusedLocals`, `noUnusedParameters`,

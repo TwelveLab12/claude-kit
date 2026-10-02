@@ -41,7 +41,7 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
 
 | Module | Contenu |
 | --- | --- |
-| `core` (toujours) | tsconfig strict, `.nvmrc` (Node LTS), `.gitattributes` LF, `typecheck` avec `next typegen` |
+| `core` (toujours) | tsconfig strict, version de Node (épinglage Volta dans `package.json` avec `run=volta`, sinon `.nvmrc`), lue aussi par la CI, `.gitattributes` LF, `typecheck` avec `next typegen` |
 | `tailwind-shadcn` | Tailwind v4 + shadcn/ui sur **Radix** (pas Base UI) |
 | `eslint` | flat config Next + convention `_` |
 | `prettier` | printWidth 100, plugin Tailwind, `format:check` en CI |
@@ -100,4 +100,6 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
   activer dans *Workflows* du board (la commande en donne la liste : item ajouté → « À faire », PR
   liée → « En cours », PR mergée et item fermé → « Terminé », auto-close, sous-issues).
 - Sous Linux/WSL, bibliothèques système de Chromium pour Playwright, une fois par machine :
-  `sudo $(which node) node_modules/.bin/playwright install-deps chromium`.
+  `sudo apt-get install -y $(pnpm exec playwright install-deps --dry-run chromium 2>/dev/null | sed -n 's/^  //p')`
+  (avec Volta : `volta run pnpm exec …`). Seul `apt` passe en root : un shim Volta ne fonctionne
+  pas sous `sudo`.

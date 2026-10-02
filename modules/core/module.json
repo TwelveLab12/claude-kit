@@ -1,7 +1,7 @@
 {
   "id": "core",
   "title": "Socle Next.js + TypeScript strict",
-  "description": "tsconfig strict, .nvmrc, .gitattributes (LF pour les hooks), scripts typegen/typecheck.",
+  "description": "tsconfig strict, version de Node (épinglée par Volta dans package.json, ou .nvmrc), .gitattributes (LF), scripts typegen/typecheck.",
   "group": "socle",
   "required": true,
   "packageJson": { "type": "module" },
@@ -10,5 +10,13 @@
     "typecheck": "next typegen && tsc --noEmit"
   },
   "gitignore": ["!.env.example"],
-  "eslintIgnores": [".claude/**"]
+  "eslintIgnores": [".claude/**"],
+  "post": [
+    {
+      "run": "volta pin node@{{nodeVersion}}",
+      "when": "always",
+      "if": "volta",
+      "unlessPackageField": "volta.node"
+    }
+  ]
 }

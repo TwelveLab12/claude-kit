@@ -12,7 +12,8 @@
 - Sélecteurs par rôle ou label (`getByRole`), jamais par classe CSS. Pas de `waitForTimeout` :
   utiliser les assertions auto-retry (`await expect(...).toBeVisible()`).
 - Premier lancement local : `{{run}} exec playwright install chromium`. Sous Linux/WSL, Chromium a
-  aussi besoin de bibliothèques système, à installer une fois par machine par l'utilisateur
-  (`sudo` demande son mot de passe, ne pas le lancer à sa place) :
-  `sudo $(which node) node_modules/.bin/playwright install-deps chromium`. Symptôme si elles
-  manquent : `error while loading shared libraries: libnspr4.so`.
+  aussi besoin de bibliothèques système, à installer une fois par machine **par l'utilisateur**
+  (`sudo` demande son mot de passe, ne pas le lancer à sa place). Seul `apt` passe en root, Node
+  reste dans l'espace utilisateur (un shim Volta ne fonctionne pas sous `sudo`) :
+  `sudo apt-get install -y $({{run}} exec playwright install-deps --dry-run chromium 2>/dev/null | sed -n 's/^  //p')`.
+  Symptôme si elles manquent : `error while loading shared libraries: libnspr4.so`.

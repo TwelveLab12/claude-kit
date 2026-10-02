@@ -148,6 +148,7 @@ function computeVars(mods, selected, baseVars, projectName) {
   const vars = { ...MANIFEST.defaults, projectName, ...baseVars };
   if (vars.run === "volta") vars.run = "volta run pnpm";
   vars.volta = vars.run.startsWith("volta") ? "1" : "";
+  vars.nodeFromNvmrc = vars.volta ? "" : "1";
   vars.pm = "pnpm";
   for (const mod of mods) {
     for (const [key, value] of Object.entries(mod.vars ?? {})) {
@@ -217,12 +218,14 @@ function renderCi(selected, vars) {
       "",
     );
   }
+  // One source of truth for the Node version: Volta's pin in package.json (setup-node reads
+  // `volta.node`) for Volta users, .nvmrc otherwise.
   const setup = [
     "      - uses: pnpm/action-setup@v6",
     "",
     "      - uses: actions/setup-node@v7",
     "        with:",
-    "          node-version-file: .nvmrc",
+    `          node-version-file: ${vars.volta ? "package.json" : ".nvmrc"}`,
     "          cache: pnpm",
     "",
     "      - run: pnpm install --frozen-lockfile",
@@ -475,6 +478,8 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
     write(".prettierrc.json", renderPrettierrc(selected));
     write(".prettierignore", renderPrettierignore(mods));
   }
+  // Volta projects pin Node in package.json (post command of `core`): no second source in .nvmrc.
+  if (!vars.volta) write(".nvmrc", `${vars.nodeVersion}\n`, "seed");
   const gitignoreLines = mods.flatMap((m) => m.gitignore ?? []);
   if (gitignoreLines.length) {
     const current = readIfExists(path.join(target, ".gitignore")) ?? "";
@@ -534,15 +539,24 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
   }
 
   // 5. Post-install commands. Those flagged `last` (formatting) run once every file is written.
+  //    `if` = module/var condition; `unlessPackageField` = skip when package.json already has it
+  //    (e.g. an existing Volta pin is the project's choice, never overwritten).
   const isGitRepo = fs.existsSync(path.join(target, ".git"));
   const posts = mods
     .flatMap((m) => (m.post ?? []).map((p) => ({ ...p, module: m.id })))
-    .filter((p) => p.when === "always" || fresh);
+    .filter((p) => p.when === "always" || fresh)
+    .filter((p) => !p.if || renderIf(p.if));
+  const hasPackageField = (dotted) =>
+    dotted.split(".").reduce((obj, key) => obj?.[key], readJson(pkgPath)) !== undefined;
   const runPosts = (list) => {
     for (const post of list) {
       const cmd = render(post.run);
       if (post.module === "husky" && !isGitRepo) {
         report.commands.push({ cmd, skipped: "pas de dépôt git" });
+        continue;
+      }
+      if (post.unlessPackageField && hasPackageField(post.unlessPackageField)) {
+        report.commands.push({ cmd, skipped: `${post.unlessPackageField} déjà défini` });
         continue;
       }
       report.commands.push({ cmd, skipped: dryRun || !install ? "dry-run/no-install" : undefined });
