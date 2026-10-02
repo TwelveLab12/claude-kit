@@ -1,0 +1,22 @@
+{
+  "id": "vitest",
+  "title": "Vitest + Testing Library",
+  "description": "Tests unitaires et de composants (jsdom), globals désactivés, couverture v8.",
+  "group": "tests",
+  "default": true,
+  "devDependencies": [
+    "vitest",
+    "@vitejs/plugin-react",
+    "@vitest/coverage-v8",
+    "jsdom",
+    "@testing-library/react",
+    "@testing-library/dom",
+    "@testing-library/jest-dom",
+    "@testing-library/user-event"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  }
+}

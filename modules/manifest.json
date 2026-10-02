@@ -1,0 +1,31 @@
+{
+  "order": [
+    "core",
+    "tailwind-shadcn",
+    "eslint",
+    "prettier",
+    "husky",
+    "vitest",
+    "playwright",
+    "a11y",
+    "docs-adr",
+    "github-ci",
+    "vercel-check",
+    "dependabot",
+    "github-workflow",
+    "claude-settings"
+  ],
+  "groups": {
+    "socle": "Socle",
+    "ui": "UI",
+    "qualite": "Qualité du code",
+    "tests": "Tests",
+    "docs": "Documentation",
+    "github": "GitHub",
+    "claude": "Claude Code"
+  },
+  "defaults": {
+    "run": "pnpm",
+    "nodeVersion": "24"
+  }
+}

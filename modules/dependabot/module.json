@@ -1,0 +1,7 @@
+{
+  "id": "dependabot",
+  "title": "Dependabot",
+  "description": "Mises à jour hebdo npm (minor/patch groupés) + GitHub Actions, label dependencies.",
+  "group": "github",
+  "default": true
+}

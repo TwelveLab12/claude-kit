@@ -1,0 +1,7 @@
+[
+  { "name": "bug", "color": "d73a4a", "description": "Comportement défectueux" },
+  { "name": "enhancement", "color": "a2eeef", "description": "Nouvelle fonctionnalité ou amélioration UX" },
+  { "name": "documentation", "color": "0075ca", "description": "Documentation uniquement" },
+  { "name": "chore", "color": "6c757d", "description": "Outillage, infra, maintenance, sans impact fonctionnel direct" },
+  { "name": "dependencies", "color": "0366d6", "description": "Mise à jour de dépendances (Dependabot)" }
+]

@@ -1,0 +1,29 @@
+{
+  "id": "a11y",
+  "title": "Accessibilité WCAG 2.2 AA / RGAA",
+  "description": "jsx-a11y strict, axe dans Vitest, contraste des tokens du design system, specs e2e par route (axe WCAG 2.2 AA, reflow 320 px, focus visible, structure), règles Claude par thématique RGAA, agent reviewer et /claude-kit:a11y-audit.",
+  "group": "qualite",
+  "default": true,
+  "devDependenciesIf": {
+    "eslint": ["eslint-plugin-jsx-a11y"],
+    "vitest": ["axe-core"]
+  },
+  "patches": [
+    {
+      "file": "{{src}}app/globals.css",
+      "when": "fresh",
+      "if": "tailwind-shadcn",
+      "why": "Thème shadcn par défaut, mode clair : muted-foreground sur muted = 4.34:1 (< 4.5, WCAG 1.4.3 / RGAA 3.2) et ring sur background = 2.59:1 (< 3, WCAG 1.4.11 / RGAA 3.3).",
+      "replace": [
+        [
+          "  --muted-foreground: oklch(0.556 0 0);",
+          "  /* claude-kit a11y : 4.84:1 sur --muted (défaut shadcn 0.556 → 4.34:1, WCAG 1.4.3) */\n  --muted-foreground: oklch(0.53 0 0);"
+        ],
+        [
+          "  --ring: oklch(0.708 0 0);",
+          "  /* claude-kit a11y : 4.73:1 sur --background (défaut shadcn 0.708 → 2.59:1, WCAG 1.4.11) */\n  --ring: oklch(0.556 0 0);"
+        ]
+      ]
+    }
+  ]
+}

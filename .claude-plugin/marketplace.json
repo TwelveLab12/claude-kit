@@ -1,0 +1,13 @@
+{
+  "name": "twelvelab",
+  "owner": {
+    "name": "Bruno Schvartz"
+  },
+  "plugins": [
+    {
+      "name": "claude-kit",
+      "source": "./",
+      "description": "Scaffold interactif Next.js/TypeScript + conventions Claude Code et workflow GitHub."
+    }
+  ]
+}

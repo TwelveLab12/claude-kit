@@ -1,0 +1,10 @@
+{
+  "id": "husky",
+  "title": "Husky + lint-staged",
+  "description": "Hook pre-commit qui formate/lint uniquement les fichiers stagés. Jamais les tests dans le hook.",
+  "group": "qualite",
+  "default": true,
+  "devDependencies": ["husky", "lint-staged"],
+  "scripts": { "prepare": "husky" },
+  "post": [{ "run": "{{pm}} exec husky", "when": "always" }]
+}

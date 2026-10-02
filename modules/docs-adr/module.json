@@ -1,0 +1,7 @@
+{
+  "id": "docs-adr",
+  "title": "ADR + docs/dependencies.md",
+  "description": "docs/adr/ (une décision = un fichier, jamais rétro-édité) et docs/dependencies.md (pourquoi chaque dépendance).",
+  "group": "docs",
+  "default": true
+}

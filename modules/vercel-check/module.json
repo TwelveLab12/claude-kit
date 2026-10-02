@@ -1,0 +1,9 @@
+{
+  "id": "vercel-check",
+  "title": "Vercel Deployment Check",
+  "description": "La CI publie son statut comme Deployment Check Vercel, qui bloque la promotion en production.",
+  "group": "github",
+  "default": false,
+  "requires": ["github-ci"],
+  "vars": { "vercelCheckName": "Vercel - {{projectName}}: ci" }
+}

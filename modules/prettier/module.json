@@ -1,0 +1,15 @@
+{
+  "id": "prettier",
+  "title": "Prettier",
+  "description": "printWidth 100, doubles guillemets, tri des classes Tailwind si Tailwind est sélectionné. format:check en CI.",
+  "group": "qualite",
+  "default": true,
+  "devDependencies": ["prettier"],
+  "devDependenciesIf": { "tailwind-shadcn": ["prettier-plugin-tailwindcss"] },
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "prettierIgnores": [".next", "coverage", "pnpm-lock.yaml", "next-env.d.ts"],
+  "post": [{ "run": "{{pm}} format", "when": "fresh", "last": true }]
+}

@@ -1,0 +1,7 @@
+{
+  "id": "claude-settings",
+  "title": "Réglages Claude Code partagés",
+  "description": ".claude/settings.json versionné : permissions courantes (scripts, git, gh), garde-fous (pas de push --force ni --no-verify) et activation du plugin claude-kit.",
+  "group": "claude",
+  "default": true
+}

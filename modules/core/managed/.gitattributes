@@ -1,0 +1,5 @@
+# Géré par claude-kit. LF partout, quel que soit core.autocrlf (Windows/WSL) : évite les diffs
+# de fins de ligne entre machines. Husky en a besoin en particulier : un checkout CRLF de ses hooks
+# (scripts `sh`) casse le parsing des arguments et fait échouer lint-staged silencieusement.
+* text=auto eol=lf
+.husky/* text eol=lf

@@ -1,0 +1,16 @@
+{
+  "id": "playwright",
+  "title": "Playwright (e2e + a11y axe)",
+  "description": "Tests end-to-end sur le build de prod, smoke test avec audit d'accessibilité axe-core, lancé en CI.",
+  "group": "tests",
+  "default": true,
+  "devDependencies": ["@playwright/test", "@axe-core/playwright"],
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
+  },
+  "gitignore": ["/test-results/", "/playwright-report/", "/blob-report/", "/playwright/.cache/"],
+  "eslintIgnores": ["test-results/**", "playwright-report/**", "blob-report/**"],
+  "prettierIgnores": ["test-results", "playwright-report", "blob-report"],
+  "post": [{ "run": "{{pm}} exec playwright install chromium", "when": "always" }]
+}

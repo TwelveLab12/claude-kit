@@ -1,0 +1,14 @@
+{
+  "id": "core",
+  "title": "Socle Next.js + TypeScript strict",
+  "description": "tsconfig strict, .nvmrc, .gitattributes (LF pour les hooks), scripts typegen/typecheck.",
+  "group": "socle",
+  "required": true,
+  "packageJson": { "type": "module" },
+  "scripts": {
+    "typegen": "next typegen",
+    "typecheck": "next typegen && tsc --noEmit"
+  },
+  "gitignore": ["!.env.example"],
+  "eslintIgnores": [".claude/**"]
+}

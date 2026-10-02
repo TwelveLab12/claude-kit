@@ -1,0 +1,12 @@
+{
+  "id": "eslint",
+  "title": "ESLint",
+  "description": "Flat config next/core-web-vitals + next/typescript, convention _ pour les variables ignorées, lint:ci sans warning.",
+  "group": "qualite",
+  "default": true,
+  "scripts": {
+    "lint": "eslint .",
+    "lint:ci": "eslint . --max-warnings=0"
+  },
+  "eslintIgnores": ["coverage/**"]
+}

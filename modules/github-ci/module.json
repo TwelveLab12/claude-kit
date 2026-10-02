@@ -1,0 +1,7 @@
+{
+  "id": "github-ci",
+  "title": "CI GitHub Actions",
+  "description": "Workflow généré selon les modules : typecheck → format:check → lint:ci → test → build → e2e.",
+  "group": "github",
+  "default": true
+}

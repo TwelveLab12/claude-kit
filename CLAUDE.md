@@ -1,0 +1,46 @@
+# CLAUDE.md
+
+Repo du plugin Claude Code **claude-kit** : scaffold interactif et conventions partagées des
+projets TwelveLab12. Voir [README.md](README.md) pour l'architecture (managed/seed/merge/rules,
+lockfile, canary).
+
+## Commandes
+
+```bash
+node scripts/apply.mjs list                                  # catalogue des modules
+node scripts/apply.mjs create <tmp> --modules all --var owner=TwelveLab12 --var boardNumber=1
+node scripts/apply.mjs apply <projet> --from-lock --dry-run  # plan d'un sync
+node --check scripts/*.mjs                                    # syntaxe
+```
+
+Tester un changement : générer un projet jetable hors du repo (ex. `$(mktemp -d)/canary`), y lancer
+typecheck, format:check, lint:ci, test, build, test:e2e, puis `apply . --from-lock --no-install`
+doit renvoyer `written: []` (idempotence). C'est exactement ce que fait le canary en CI.
+
+Environnement : tout l'outillage (git, gh, node, pnpm via Volta) tourne dans WSL, et les repos sont
+dans le système de fichiers Linux (`~/code`), pas sous `/mnt/c`. Le kit doit rester portable
+(scripts Node sans dépendance, `gh` pris dans le PATH) : le canary tourne sous Linux.
+
+## Conventions
+
+- Scripts Node **sans dépendance** (ESM, `node:` uniquement) : le plugin doit tourner sur un
+  poste sans `pnpm install` préalable.
+- Tout ce qui est mécanique va dans `scripts/apply.mjs` ; les skills ne font que dialoguer,
+  décider et écrire le spécifique au projet. Une règle qu'on ne peut pas tester en CI n'a pas sa
+  place dans le script.
+- Contenu d'un module : fichier possédé par le kit → `managed/` ; possédé par le projet une fois
+  créé → `seed/` ; JSON partagé → `merge/`. En cas de doute, `seed/` (un sync ne doit jamais
+  écraser une personnalisation).
+- Templating : `{{var}}` et `{{#if moduleOuVar}}…{{/if}}` (non imbriqué ; `a+b` = tous vrais).
+  Fichier qui dépend d'autres modules → dossier `seed@a+b/`, pas de logique dans le script.
+- `patches` : remplacements **littéraux** uniquement, et un test du projet doit échouer si le
+  patch ne s'applique plus (ex. contraste des tokens). Jamais de regex « tolérante ».
+- Tester qu'un contrôle détecte vraiment : introduire le défaut dans un projet généré et vérifier
+  l'échec, pas seulement que le projet sain passe.
+- Ne pas figer de version dans un module : ce qui vient avec Next est laissé à `create-next-app`,
+  le reste est installé en `@latest`. Un standard qui change se traite dans le module concerné.
+- Toute évolution visible dans un projet : bump de `version` dans `.claude-plugin/plugin.json`
+  (semver : majeure si un sync demande une action manuelle) + entrée dans `CHANGELOG.md`.
+- Règles (`rules.md`) en français, courtes, impératives, avec le *pourquoi* quand il n'est pas
+  évident.
+- Workflow Git : celui du module `github-workflow` (issue, branche, PR, squash-merge).
