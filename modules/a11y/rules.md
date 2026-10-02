@@ -1,56 +1,90 @@
 ## Accessibilité (WCAG 2.2 AA, grille RGAA)
 
-Cible : **WCAG 2.2 niveau AA**. Le RGAA 4.1.2 (méthode française, bâtie sur WCAG 2.1 AA) sert de
-grille de lecture : citer le critère RGAA (ex. « RGAA 11.1 ») dans les issues, PR et commentaires
-qui touchent à l'accessibilité. L'accessibilité fait partie de la définition de « terminé », au
-même titre que les tests.
+L'accessibilité est une contrainte du projet, pas une passe de finition : elle fait partie de la
+définition de « terminé », au même titre que les tests. Cible : **WCAG 2.2 niveau AA**. Le RGAA
+4.1.2 (méthode française, alignée sur WCAG 2.1 AA) sert de grille de lecture jusqu'à la sortie du
+RGAA 5 (attendu fin 2026, aligné sur WCAG 2.2). Citer le critère (ex. « RGAA 11.1 », « WCAG 2.5.8 »)
+dans les issues, PR et commentaires qui touchent à l'accessibilité. Les nouveautés WCAG 2.2 que le
+RGAA 4.1.2 ne couvre pas (focus non masqué 2.4.11, taille des cibles 2.5.8, saisie redondante
+3.3.7, authentification accessible 3.3.8…) sont suivies par cette checklist.
 
-### Contrôles automatiques (ils ne couvrent qu'une partie des critères)
+Trois couches, aucune suffisante seule : les outils automatiques, la checklist ci-dessous à
+l'écriture du code, et les tests manuels de `docs/accessibility.md` (clavier, zoom, lecteur
+d'écran). Un outil au vert n'est **pas** une conformité : ne jamais afficher ni publier de niveau de
+conformité sans audit formel (voir l'ADR de stratégie accessibilité du projet).
 
-{{#if eslint}}- ESLint `jsx-a11y` en config strict : ne jamais désactiver une de ses règles pour passer le lint.
+### Contrôles automatiques
+
+{{#if eslint}}- ESLint `jsx-a11y` en config strict, bloquant dans `lint:ci`. Une erreur jsx-a11y est un vrai
+  défaut : la corriger. Un `eslint-disable` pour une règle jsx-a11y n'est admis qu'avec un
+  commentaire qui explique pourquoi. Un composant qui rend un `<a>`, `<img>` ou `<button>`
+  (wrapper de `Link`, bouton-lien…) se déclare dans `settings["jsx-a11y"].components` de
+  `eslint.config.mjs`, pour que les règles le contrôlent comme l'élément natif.
 {{/if}}{{#if vitest}}- Vitest : `a11yViolations(container)` de `{{src}}test/a11y.ts` (axe-core, sans contraste ni
   mise en page, que jsdom ne calcule pas). Tout nouveau composant interactif reçoit un test
   `*.a11y.test.tsx` qui vérifie aussi son comportement clavier.
 {{/if}}{{#if vitest+tailwind-shadcn}}- Contraste des tokens (`{{src}}test/design-tokens.a11y.test.ts`) : chaque couple `--x` /
-  `--x-foreground` de `{{src}}app/globals.css`, en clair comme en sombre, doit atteindre 4.5:1. On
-  corrige le token, pas le test.
-{{/if}}{{#if playwright}}- Playwright (`e2e/a11y.spec.ts`) : axe WCAG 2.2 AA, reflow à 320 px, focus visible, `lang`,
-  `<title>` et hiérarchie des titres, **pour chaque route de `e2e/routes.ts`**. Toute nouvelle page
-  y est ajoutée dans la PR qui la crée.
+  `--x-foreground` de `{{src}}app/globals.css`, en clair comme en sombre, doit atteindre 4.5:1 ;
+  ajouter au test toute nouvelle paire utilisée ailleurs. On corrige le token, pas le test.
+{{/if}}{{#if playwright}}- Playwright (`e2e/a11y.spec.ts`) : axe WCAG 2.2 AA et bonnes pratiques, reflow à 320 px, focus
+  visible, `lang`, `<title>` et hiérarchie des titres, **pour chaque route de `e2e/routes.ts`**, plus
+  la page 404. Toute nouvelle page y est ajoutée dans la PR qui la crée ; un état interactif
+  important (menu ouvert, modale, onglet) mérite son propre test.
 {{/if}}
 
-### À respecter en écrivant le code (ce que les outils ne voient pas)
+### Checklist à l'écriture du code
 
-- **Images (RGAA 1)** : `alt` qui transmet l'information utile ; `alt=""` si décorative ; jamais le
-  nom du fichier ni « image de ». Les SVG informatifs ont `role="img"` + `aria-label`, les
-  décoratifs `aria-hidden="true"`.
-- **Couleurs (RGAA 3)** : l'information ne passe jamais par la couleur seule (erreur = texte +
-  icône, lien = soulignement ou autre indice). Contraste 4.5:1 (texte), 3:1 (grand texte, bordures
-  de champs, icônes, indicateur de focus). L'opacité appliquée par une classe échappe au test des
-  tokens : un anneau `ring-ring/50` seul ne garantit pas 3:1, garder un indice opaque
-  (`border-ring`, `outline`).
-- **Scripts (RGAA 7)** : composant interactif = élément natif (`button`, `a`, `input`…) ou primitive
-  Radix ; jamais de `div` cliquable. Changement de contenu important annoncé (`aria-live`, toast
-  accessible). Modale : focus piégé dedans, rendu à l'élément d'origine à la fermeture, Échap ferme.
-- **Structure (RGAA 8 et 9)** : un `<title>` unique et descriptif par page (`metadata`), `lang` sur
-  `<html>`, un seul `h1`, titres sans saut de niveau, landmarks (`header`, `nav`, `main`, `footer`),
-  listes en `ul`/`ol`.
-- **Liens (RGAA 6)** : intitulé explicite hors contexte (pas de « cliquez ici », « en savoir plus »
-  seul) ; lien icône = `aria-label` ; lien qui ouvre un nouvel onglet = le dire.
-- **Formulaires (RGAA 11)** : chaque champ a un `label` visible et associé ; champs obligatoires
-  indiqués autrement que par la couleur ; erreurs reliées par `aria-describedby` et
-  `aria-invalid`, avec suggestion de correction ; `autocomplete` sur les champs personnels.
-- **Navigation (RGAA 12)** : lien d'évitement vers `main` ; ordre de tabulation logique, pas de
-  `tabindex` positif ; aucun piège clavier ; focus toujours visible (ne jamais `outline-none` sans
-  alternative `focus-visible:`) ; cibles tactiles d'au moins 24×24 px (WCAG 2.5.8).
-- **Consultation (RGAA 13)** : contenu lisible à 320 px de large et zoom 200 % sans perte ;
-  animations désactivées sous `prefers-reduced-motion` (`motion-safe:`/`motion-reduce:`) ; rien
-  qui clignote plus de 3 fois par seconde.
+- **Structure (RGAA 8, 9)** : un `<title>` unique et descriptif par page (`metadata`), `lang` sur
+  `<html>` et `lang` local sur un passage dans une autre langue ; un seul `h1`, titres sans saut de
+  niveau ; `<header>`, `<nav>`, `<footer>` de page **hors** de `<main>` (frères) ; chaque `<nav>`
+  a un `aria-label` ; listes en `ul`/`ol`, dates en `<time>`.
+- **Lien d'évitement (RGAA 12.7)** : premier élément focalisable de chaque page, dans le layout,
+  visible au focus, vers le `<main>` qui porte l'`id` cible sur **toutes** les pages.
+- **Natif d'abord (RGAA 7)** : `<button>` pour une action, `<a>` pour une navigation, primitive
+  Radix pour un composant complexe ; jamais de `div onClick`.
+- **Noms accessibles** : tout contrôle a un nom ; un contrôle à icône seule a un `aria-label`
+  **constant** (l'état passe par `aria-expanded`/`aria-pressed`, ne pas changer le libellé en plus) ;
+  icônes décoratives `aria-hidden` ; `alt` pertinent ou `alt=""` si décorative ; la cible d'un
+  `aria-controls` reste dans le DOM quand elle est fermée (visibilité en CSS).
+- **Schémas et SVG informatifs (RGAA 1, 3)** : `role="img"` + `aria-label`/`aria-labelledby` qui
+  décrit les relations, pas seulement le titre ; aucun sens porté par la couleur seule (forme,
+  motif, et une légende visible quand c'est possible). axe ne mesure pas le contraste du texte et
+  des tracés SVG : le calculer à la main et noter les valeurs dans un commentaire du composant.
+- **Couleurs (RGAA 3)** : tokens du design system uniquement ; jamais d'information par la couleur
+  seule (garder le soulignement des liens dans le texte). Contraste 4.5:1 pour le texte, 3:1 pour
+  le grand texte, les bordures de champs, les icônes et l'indicateur de focus. L'opacité appliquée
+  par une classe échappe au test des tokens : un anneau `ring-ring/50` seul ne garantit pas 3:1,
+  garder un indice opaque (`border-ring`, `outline`).
+- **Focus (RGAA 10.7, 12 ; WCAG 2.4.11)** : un anneau `:focus-visible` global couvre `a`, `button`,
+  `input`, `textarea`, `select` et `[tabindex="0"]` ; jamais `outline-none` sans remplacement aussi
+  visible ; le focus n'est jamais masqué par un en-tête collant (`scroll-padding-top`) ; ordre du
+  DOM = ordre de tabulation, pas de `tabindex` positif, aucun piège. Menus, disclosures et modales
+  rendent le focus à leur déclencheur à la fermeture et à Échap.
+- **Zones défilantes** : un conteneur `overflow-*-auto` doit être atteignable au clavier :
+  `tabIndex={0}` + `role="group"` + `aria-label` constant (sinon axe `scrollable-region-focusable`).
+  Le Markdown rendu passe par **un seul** composant qui applique ce traitement aux blocs de code et
+  aux tableaux (avec de vrais `<th>`) : jamais de rendu Markdown brut ailleurs.
+- **Cibles (WCAG 2.5.8)** : au moins 24×24 px, viser 44×44 pour un contrôle à icône seule.
+- **Mouvement (RGAA 13 ; WCAG 2.3.3)** : animation et défilement fluide seulement sous
+  `prefers-reduced-motion: no-preference` (`motion-safe:`) ; rien ne clignote plus de 3 fois par
+  seconde.
+- **Reflow et zoom (RGAA 10.4, 10.11)** : pas de défilement horizontal de la page à 320 px, rien de
+  perdu à 200 % ; tailles de police en `rem` ; un contenu large (tableau, schéma, code) défile dans
+  sa propre zone, focalisable.
+- **Formulaires (RGAA 11 ; WCAG 3.3.7)** : `label` visible et associé, regroupement `fieldset`/
+  `legend`, obligatoires signalés autrement que par la couleur, `autocomplete` sur les données
+  personnelles ; erreurs annoncées (`role="alert"` ou région `aria-live`), reliées au champ
+  (`aria-describedby`, `aria-invalid`), dans une couleur d'erreur **mesurée** à 4.5:1 sur son fond
+  (le `red-600` de Tailwind n'y arrive pas sur un fond clair teinté). Un envoi en échec ne doit
+  jamais effacer la saisie : React 19 réinitialise un `<form action>` après l'action, conserver
+  l'état (ou soumettre via `onSubmit`) quand l'échec est possible.
 
 ### Revue et audit
 
 - Avant une PR qui touche l'UI, `/claude-kit:ship-task` fait relire le diff par l'agent
   `a11y-reviewer` : un constat « bloquant » se corrige avant d'ouvrir la PR.
-- `/claude-kit:a11y-audit <route>` produit un rapport par thématique RGAA pour une page. Les
-  critères qui demandent un lecteur d'écran (NVDA, VoiceOver) restent à vérifier par un humain :
-  aucun rapport automatique ne vaut déclaration de conformité.
+- `/claude-kit:a11y-audit <route>` produit un rapport par thématique RGAA pour une page, et met à
+  jour `docs/accessibility.md`. Les critères qui demandent un lecteur d'écran (NVDA, VoiceOver)
+  restent à vérifier par un humain.
+- Un défaut trouvé à la main devient une issue (type + label `accessibility`) et figure dans les
+  « écarts ouverts » de `docs/accessibility.md` tant qu'elle est ouverte.

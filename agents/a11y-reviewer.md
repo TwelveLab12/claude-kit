@@ -31,23 +31,36 @@ tokens) tournent déjà. Concentre-toi sur **ce qu'ils ne peuvent pas juger**, p
    inversement).
 7. **Scripts** : composant interactif non natif (`div`/`span` avec `onClick`), gestion clavier
    (Entrée/Espace, flèches pour menus, onglets et listes, Échap), gestion du focus à
-   l'ouverture/fermeture (modale, menu, suppression d'élément), messages de statut annoncés
-   (`aria-live`, `role="status"`/`alert`), ARIA qui contredit le comportement réel.
+   l'ouverture/fermeture (modale, menu, suppression d'élément : le focus revient au déclencheur),
+   messages de statut annoncés (`aria-live`, `role="status"`/`alert`), ARIA qui contredit le
+   comportement réel. Bouton à bascule dont le libellé **et** `aria-expanded` changent à la fois
+   (le nom doit rester constant) ; cible d'un `aria-controls` retirée du DOM quand elle est fermée.
 8. **Éléments obligatoires** : `<title>` pertinent et unique (metadata Next), langue, changement
    de langue dans le contenu (`lang` local).
 9. **Structure** : hiérarchie des titres, titres visuels qui ne sont pas des `h*` (et
-   inversement), landmarks, listes.
+   inversement), landmarks (`header`/`nav`/`footer` de page imbriqués dans `main`, `nav` sans
+   `aria-label`), listes, nouvelle page dont le `<main>` n'a pas l'`id` visé par le lien
+   d'évitement.
 10. **Présentation** : contenu caché visuellement mais pas aux lecteurs d'écran (ou l'inverse),
     ordre du DOM vs ordre visuel (`order`, `flex-row-reverse`, positionnement absolu), zoom 200 %
-    et 320 px (largeurs fixes, `overflow-hidden` qui coupe du texte), texte dans une image.
+    et 320 px (largeurs fixes, `overflow-hidden` qui coupe du texte, tailles de police en `px`),
+    texte dans une image. Conteneur défilant (`overflow-*-auto`) sans `tabIndex={0}` + `role` +
+    nom ; Markdown rendu sans passer par le composant commun du projet.
 11. **Formulaires** : label visible et associé, regroupement (`fieldset`/`legend`), champs
     obligatoires signalés autrement que par la couleur, erreurs reliées (`aria-describedby`,
-    `aria-invalid`) avec suggestion, `autocomplete` sur les données personnelles.
+    `aria-invalid`) et annoncées, avec suggestion, `autocomplete` sur les données personnelles.
+    Saisie perdue après un envoi en échec (WCAG 3.3.7 ; attention au `<form action>` de React 19,
+    réinitialisé après l'action) ; couleur d'erreur non mesurée (le `red-600` de Tailwind échoue
+    souvent à 4.5:1).
 12. **Navigation** : lien d'évitement, `tabindex` positif, piège clavier, ordre de tabulation,
     cibles de moins de 24×24 px (WCAG 2.5.8).
-13. **Consultation** : animations sans `motion-reduce:`/`prefers-reduced-motion`, limite de
-    temps, contenu qui apparaît au survol sans être accessible au clavier ni refermable (WCAG
-    1.4.13), orientation imposée.
+13. **Consultation** : animations ou `scroll-behavior: smooth` hors de
+    `prefers-reduced-motion: no-preference`, limite de temps, contenu qui apparaît au survol sans
+    être accessible au clavier ni refermable (WCAG 1.4.13), orientation imposée.
+
+Schémas et SVG informatifs (thèmes 1 et 3) : nom accessible qui décrit les relations, sens porté par
+la couleur seule (exiger forme/motif et légende), contraste du texte et des tracés non mesuré (axe
+ne le voit pas) : demander les valeurs en commentaire dans le composant.
 
 ## Sortie
 

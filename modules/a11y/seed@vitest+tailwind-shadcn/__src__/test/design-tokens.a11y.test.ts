@@ -12,6 +12,8 @@ const themes = readThemes(css);
 type Pair = { fg: string; bg: string; min: number };
 
 // Every `--x-foreground` is text meant to sit on `--x`, plus the pairs used across the UI.
+// Add the project's own pairs below (token names without `--`, e.g. a custom palette defined in
+// `@theme`: { fg: "color-danger", bg: "color-paper", min: 4.5 }). Missing tokens are ignored.
 function pairsFor(tokens: Map<string, string>): Pair[] {
   const pairs: Pair[] = [...tokens.keys()]
     .filter((name) => name.endsWith("-foreground") && tokens.has(name.slice(0, -11)))
@@ -20,6 +22,7 @@ function pairsFor(tokens: Map<string, string>): Pair[] {
     { fg: "foreground", bg: "background", min: 4.5 },
     { fg: "muted-foreground", bg: "background", min: 4.5 },
     { fg: "destructive", bg: "background", min: 4.5 },
+    // Focus indicator and form field borders: non-text contrast (WCAG 1.4.11, RGAA 3.3).
     { fg: "ring", bg: "background", min: 3 },
   ];
   return [...pairs, ...extra.filter((p) => tokens.has(p.fg) && tokens.has(p.bg))];

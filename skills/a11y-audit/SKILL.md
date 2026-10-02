@@ -74,14 +74,31 @@ n'a pas de `docs/`) :
   (sélecteur ou `fichier:ligne` quand tu retrouves la source), impact utilisateur, correction.
 - « À vérifier par un humain » : liste précise (ex. « annonce du toast au lecteur d'écran »).
 
-Puis proposer : une issue par non-conformité bloquante ou majeure (label `bug`, critère RGAA dans
-le titre), via `/claude-kit:start-task` si l'utilisateur veut les traiter, et l'ajout des routes
-auditées à `e2e/routes.ts` si elles n'y sont pas.
+Puis :
+- mettre à jour `docs/accessibility.md` (s'il existe) : colonne « Sur ce projet » des thématiques
+  auditées, « Écarts ouverts », pages couvertes ou non par les tests e2e ;
+- proposer une issue par non-conformité bloquante ou majeure (label de type `bug` + label
+  `accessibility`, critère RGAA dans le titre), via `/claude-kit:start-task`, en « À faire » si
+  l'utilisateur veut la traiter, en « Backlog » sinon (avec la raison) ;
+- proposer l'ajout des routes auditées à `e2e/routes.ts` si elles n'y sont pas.
+
+Référentiel : vérifier (WebSearch) si le RGAA 5 est sorti. S'il l'est, le signaler, auditer avec
+lui et proposer une issue sur le kit pour mettre à jour les règles et les modèles.
 
 ## 5. Déclaration d'accessibilité (`--declaration`)
 
-Générer `docs/a11y/declaration.md` sur le modèle RGAA : entité, site, état de conformité
-(« non conforme » tant qu'aucun audit complet n'a été fait, jamais « totalement conforme » sur la
-base de ce skill), résultats, contenus non accessibles, dérogations, établissement de la
-déclaration (date, technologies, outils, pages), retour d'information et contact, voies de
-recours. Laisser en évidence les champs que seul l'utilisateur peut remplir (entité, contact).
+**D'abord l'obligation, ensuite le document.** Demander si le projet y est soumis : organisme
+public, entreprise au-delà de 250 M€ de chiffre d'affaires, ou service visé par la directive
+européenne Accessibilité (e-commerce, banque, transport, e-books…). L'ADR de stratégie
+accessibilité du projet a peut-être déjà tranché : le lire.
+
+- **Non soumis** : recommander de ne **pas** publier de déclaration ni de niveau de conformité.
+  Sans audit formel (outil Ara de la DINUM ou équivalent), elle engagerait le nom du propriétaire
+  sur une affirmation non vérifiée. Proposer plutôt de tenir `docs/accessibility.md` à jour. Ne
+  générer le document que si l'utilisateur maintient sa demande.
+- **Soumis** : générer `docs/a11y/declaration.md` sur le modèle RGAA : entité, site, état de
+  conformité (« non conforme » tant qu'aucun audit complet n'a été fait, jamais « totalement
+  conforme » sur la base de ce skill), résultats, contenus non accessibles, dérogations,
+  établissement de la déclaration (date, technologies, outils, pages), retour d'information et
+  contact, voies de recours. Laisser en évidence les champs que seul l'utilisateur peut remplir
+  (entité, contact), et rappeler qu'un audit formel est nécessaire avant publication.

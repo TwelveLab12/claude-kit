@@ -217,7 +217,7 @@ function renderCi(selected, vars) {
       "",
     );
   }
-  lines.push(
+  const setup = [
     "      - uses: pnpm/action-setup@v6",
     "",
     "      - uses: actions/setup-node@v7",
@@ -226,22 +226,51 @@ function renderCi(selected, vars) {
     "          cache: pnpm",
     "",
     "      - run: pnpm install --frozen-lockfile",
-  );
+  ];
+  const playwrightReport = (name) => [
+    "",
+    "      - uses: actions/upload-artifact@v5",
+    "        if: failure()",
+    "        with:",
+    `          name: ${name}`,
+    "          path: playwright-report/",
+    "          retention-days: 7",
+  ];
+  // a11yGate=advisory (adopting a project with accessibility debt): the @a11y e2e specs leave the
+  // gating job for a separate `continue-on-error` job, until the debt is cleared.
+  const advisory = selected.has("a11y") && selected.has("playwright") && vars.a11yGate === "advisory";
+
+  lines.push(...setup);
   for (const step of ciStepList(selected)) {
     if (step === "test:e2e") {
       lines.push("", "      - run: pnpm exec playwright install --with-deps chromium");
-    }
-    lines.push("", `      - run: pnpm ${step}`);
+      lines.push("", `      - run: pnpm test:e2e${advisory ? " --grep-invert @a11y" : ""}`);
+    } else lines.push("", `      - run: pnpm ${step}`);
   }
-  if (selected.has("playwright")) {
+  if (selected.has("playwright")) lines.push(...playwrightReport("playwright-report"));
+
+  if (advisory) {
     lines.push(
       "",
-      "      - uses: actions/upload-artifact@v5",
-      "        if: failure()",
-      "        with:",
-      "          name: playwright-report",
-      "          path: playwright-report/",
-      "          retention-days: 7",
+      "  # Accessibilité sur le rendu (e2e/a11y.spec.ts) : informatif, ne bloque ni le merge ni la",
+      "  # mise en production tant que la dette existante n'est pas résorbée (voir l'ADR de stratégie",
+      "  # accessibilité). Le rendre bloquant : retirer la variable a11yGate du lock, puis sync.",
+      "  a11y:",
+      "    runs-on: ubuntu-latest",
+      "    continue-on-error: true",
+      "    permissions:",
+      "      contents: read",
+      "    steps:",
+      "      - uses: actions/checkout@v7",
+      "",
+      ...setup,
+      "",
+      "      - run: pnpm exec playwright install --with-deps chromium",
+      "",
+      "      - run: pnpm build",
+      "",
+      "      - run: pnpm test:e2e --grep @a11y",
+      ...playwrightReport("a11y-report"),
     );
   }
   return lines.join("\n") + "\n";
@@ -404,15 +433,18 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
   // 1. Module files.
   for (const mod of mods) {
     // `seed/` and `managed/`, plus conditional variants `seed@a+b/` copied only when every listed
-    // module is selected (e.g. a11y's contrast test needs vitest + tailwind-shadcn).
+    // module is selected (e.g. a11y's contrast test needs vitest + tailwind-shadcn). `fresh/` is
+    // a seed written only by `create` (e.g. a numbered ADR that would collide in an existing repo).
     for (const entry of fs.readdirSync(mod.dir)) {
-      const match = /^(managed|seed)(?:@([\w+-]+))?$/.exec(entry);
+      const match = /^(managed|seed|fresh)(?:@([\w+-]+))?$/.exec(entry);
       if (!match) continue;
       const [, kind, condition] = match;
+      if (kind === "fresh" && !fresh) continue;
       if (condition && !condition.split("+").every((id) => selected.has(id))) continue;
       const dir = path.join(mod.dir, entry);
       for (const rel of walk(dir)) {
-        write(targetPath(rel), render(fs.readFileSync(path.join(dir, rel), "utf8")), kind);
+        const content = render(fs.readFileSync(path.join(dir, rel), "utf8"));
+        write(targetPath(rel), content, kind === "managed" ? "managed" : "seed");
       }
     }
     const mergeDir = path.join(mod.dir, "merge");

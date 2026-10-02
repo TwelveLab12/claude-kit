@@ -2,12 +2,15 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { ROUTES } from "./routes";
 
-// WCAG 2.0 → 2.2, levels A and AA (RGAA 4.1.2 is built on WCAG 2.1 AA).
-const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
+// WCAG 2.0 → 2.2, levels A and AA (RGAA 4.1.2 is built on WCAG 2.1 AA), plus axe's best
+// practices (landmarks, heading order, page h1, skip link…), which map to RGAA 9 and 12.
+const AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"];
 const MAX_TAB_STOPS = 50;
+// Tagged so CI can run these specs in a separate, non-blocking job (kit var a11yGate=advisory).
+const A11Y = { tag: "@a11y" };
 
 async function wcagViolations(page: Page) {
-  const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
+  const results = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze();
   return results.violations.map((v) => ({
     rule: v.id,
     impact: v.impact,
@@ -25,7 +28,7 @@ async function open(page: Page, route: string) {
 }
 
 for (const route of ROUTES) {
-  test.describe(`a11y ${route}`, () => {
+  test.describe(`a11y ${route}`, A11Y, () => {
     test("no WCAG 2.2 AA violation (axe)", async ({ page }) => {
       await open(page, route);
       expect(await wcagViolations(page)).toEqual([]);
@@ -100,11 +103,18 @@ for (const route of ROUTES) {
   });
 }
 
-test("page titles are unique (RGAA 8.6)", async ({ page }) => {
+test("page titles are unique (RGAA 8.6)", A11Y, async ({ page }) => {
   const titles: string[] = [];
   for (const route of ROUTES) {
     await page.goto(route);
     titles.push(await page.title());
   }
   expect(new Set(titles).size, titles.join(" / ")).toBe(titles.length);
+});
+
+// The 404 is a page template too, and the one nobody looks at.
+test("404 page has no WCAG 2.2 AA violation (axe)", A11Y, async ({ page }) => {
+  const response = await page.goto("/__claude-kit-a11y-not-found");
+  expect(response?.status()).toBe(404);
+  expect(await wcagViolations(page)).toEqual([]);
 });

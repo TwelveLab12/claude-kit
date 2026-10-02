@@ -58,14 +58,22 @@ export function contrastRatio(a: LinearRgb, b: LinearRgb): number {
   return (light + 0.05) / (dark + 0.05);
 }
 
-/** Custom properties declared in `:root` and `.dark` blocks, with `var(--x)` resolved. */
+/**
+ * Custom properties declared in `:root`, `.dark` and Tailwind v4 `@theme` blocks, with `var(--x)`
+ * resolved. `@theme` colours count as light-theme (`:root`) tokens; its pure aliases
+ * (`--color-x: var(--x)`, shadcn's `@theme inline`) are skipped to avoid duplicate pairs.
+ */
 export function readThemes(css: string): Map<string, Map<string, string>> {
   const themes = new Map<string, Map<string, string>>();
-  for (const block of css.matchAll(/(?:^|\n)\s*(:root|\.dark)\s*\{([^}]*)\}/g)) {
-    const [, selector = "", body = ""] = block;
+  const blocks = /(?:^|\n)\s*(:root|\.dark|@theme(?:\s+inline)?)\s*\{([^}]*)\}/g;
+  for (const block of css.matchAll(blocks)) {
+    const [, rawSelector = "", body = ""] = block;
+    const isTheme = rawSelector.startsWith("@theme");
+    const selector = isTheme ? ":root" : rawSelector;
     const tokens = themes.get(selector) ?? new Map<string, string>();
     for (const decl of body.matchAll(/--([\w-]+)\s*:\s*([^;]+);/g)) {
       const [, name = "", value = ""] = decl;
+      if (isTheme && /^var\(/.test(value.trim())) continue;
       tokens.set(name, value.trim());
     }
     themes.set(selector, tokens);
