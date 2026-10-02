@@ -48,12 +48,12 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
 | `husky` | pre-commit lint-staged (jamais les tests) |
 | `vitest` | Vitest + Testing Library, jsdom, couverture v8 |
 | `playwright` | e2e sur build de prod + smoke test axe |
-| `a11y` | WCAG 2.2 AA / RGAA : jsx-a11y strict, axe en Vitest, contraste des tokens, suite e2e par route (axe, reflow 320 px, focus visible, structure), règles Claude |
+| `a11y` | WCAG 2.2 AA / RGAA : jsx-a11y strict, axe en Vitest, contraste des tokens, suite e2e par route + 404 (axe, reflow 320 px, focus visible, structure), `docs/accessibility.md` (couverture RGAA, tests manuels), ADR de stratégie, règles Claude ; `a11yGate=advisory` pour un projet avec dette |
 | `docs-adr` | `docs/adr/` + `docs/dependencies.md` généré |
 | `github-ci` | CI générée selon les modules |
 | `vercel-check` | Deployment Check Vercel |
 | `dependabot` | npm (minor/patch groupés) + actions |
-| `github-workflow` | règles issue/label/board/PR, templates d'issue et de PR |
+| `github-workflow` | règles issue/label/PR, un board par dépôt (Backlog / À faire / En cours / Terminé), templates d'issue et de PR |
 | `claude-settings` | `.claude/settings.json` partagé (permissions, garde-fous, plugin) |
 
 ## Comment ça marche
@@ -71,7 +71,9 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
   - `module.json` : dépendances, scripts, ignores, commandes post-install, variables, `patches`
     littéraux (ex. tokens shadcn corrigés pour l'accessibilité) ;
   - `seed@a+b/` ou `managed@a/` : variantes copiées seulement si les modules listés sont
-    sélectionnés.
+    sélectionnés ;
+  - `fresh/` : seed écrit uniquement à la création d'un projet (ex. un ADR numéroté, qui
+    entrerait en collision avec ceux d'un projet existant).
 - Les fichiers composés (CI, `.prettierrc.json`, lint-staged, bloc `.gitignore`,
   `docs/dependencies.md`) sont générés selon la combinaison de modules.
 - Toute sortie passe par le Prettier du projet : un sync sans changement du kit n'écrit rien.
@@ -93,5 +95,9 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
 ## Réglages GitHub à faire à la main
 
 - Scope `project` pour `gh` : `gh auth refresh -s project`.
-- Sur le board, activer les workflows intégrés *Auto-add to project*, *Item closed* et
-  *Pull request merged* (statut terminé).
+- Un board par dépôt, créé et configuré par `node scripts/board.mjs init --repo <owner>/<nom>`
+  (colonnes Backlog / À faire / En cours / Terminé). Les workflows intégrés n'ont pas d'API : les
+  activer dans *Workflows* du board (la commande en donne la liste : item ajouté → « À faire », PR
+  liée → « En cours », PR mergée et item fermé → « Terminé », auto-close, sous-issues).
+- Sous Linux/WSL, bibliothèques système de Chromium pour Playwright, une fois par machine :
+  `sudo $(which node) node_modules/.bin/playwright install-deps chromium`.
