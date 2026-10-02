@@ -33,6 +33,8 @@ Retours d'expérience de BrunoSchvartzDev (chantier accessibilité #99 à #129, 
   légende, contraste mesuré à la main), focus non masqué par un en-tête collant, `rem`, couleur
   d'erreur mesurée, saisie conservée après un échec (`<form action>` de React 19).
 - e2e : règles « best-practice » d'axe en plus de WCAG, page 404 auditée, tests tagués `@a11y`.
+- `not-found.tsx` accessible fourni (créé s'il manque) : la 404 par défaut de Next n'a pas de
+  `<main>` (axe `landmark-one-main`, `region`). Le scaffold ajoute le lien d'évitement au layout.
 - Option `a11yGate=advisory` : pour un projet existant avec de la dette, les tests `@a11y` passent
   dans un job CI séparé, non bloquant (`continue-on-error`), le temps de la résorber.
 - Test de contraste : lit aussi les blocs `@theme` (palettes Tailwind v4 en hexadécimal), paires
@@ -41,12 +43,18 @@ Retours d'expérience de BrunoSchvartzDev (chantier accessibilité #99 à #129, 
   génère une déclaration qu'après avoir vérifié l'obligation légale.
 - Agent `a11y-reviewer` : contrôles ajoutés (focus rendu au déclencheur, libellé constant,
   conteneurs défilants, saisie perdue, SVG informatifs, défilement fluide hors `no-preference`).
-- Playwright sous Linux/WSL : consigne d'installation des bibliothèques système de Chromium.
+- Playwright sous Linux/WSL : bibliothèques système de Chromium installées par `apt` seul sous
+  `sudo`, la liste venant de `playwright install-deps --dry-run` lancé sans privilèges (un shim
+  Volta ne fonctionne pas sous `sudo`).
 
 ### Socle
 
 - Règle « faits dérivés » : un chiffre qui se déduit d'une source du dépôt est calculé, jamais
   tapé en dur.
+- **Volta** (`run=volta`) : la version de Node est épinglée dans `package.json` (`volta pin`, sans
+  écraser un épinglage existant) et la CI la lit au même endroit (`node-version-file:
+  package.json`). Plus de `.nvmrc` dans ce mode : avant, Volta utilisait sa version par défaut en
+  local (22) pendant que la CI lisait `.nvmrc` (24). `.nvmrc` reste la source en mode `pnpm`.
 
 Pour un projet existant : `/claude-kit:sync`. Le nouveau `docs/accessibility.md` est créé s'il
 manque ; la config ESLint avec le mapping de composants apparaît dans `seedDiffers` ; les règles du

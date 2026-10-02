@@ -85,6 +85,10 @@ jamais écrire dedans) :
 - En création : `lang` de `<html>` (`app/layout.tsx`) = langue du contenu (`fr` par défaut pour
   TwelveLab12, `create-next-app` met `en`) et `metadata.title` réel (gabarit `%s | <Nom>`) au lieu de
   « Create Next App » : RGAA 8.3, 8.4 et 8.6.
+- Avec `a11y`, en création : lien d'évitement « Aller au contenu principal » comme premier enfant
+  du `<body>` du layout (visible au focus : `sr-only focus:not-sr-only …`), vers `#contenu`, et
+  `id="contenu"` sur le `<main>` de `app/page.tsx`. La 404 fournie par le kit (`not-found.tsx`) a
+  déjà cet `id`. Revérifier ensuite `test:e2e`.
 
 ## 5. Vérifier
 
