@@ -40,8 +40,9 @@ conformité sans audit formel (voir l'ADR de stratégie accessibilité du projet
   a un `aria-label` ; listes en `ul`/`ol`, dates en `<time>`.
 - **Lien d'évitement (RGAA 12.7)** : premier élément focalisable de chaque page, dans le layout,
   visible au focus, vers le `<main>` qui porte l'`id` cible sur **toutes** les pages.
-- **Natif d'abord (RGAA 7)** : `<button>` pour une action, `<a>` pour une navigation, primitive
-  Radix pour un composant complexe ; jamais de `div onClick`.
+- **Natif d'abord (RGAA 7)** : `<button>` pour une action, `<a>` pour une navigation, une
+  primitive accessible{{#if tailwind-shadcn}} ({{uiLib}}, via shadcn){{/if}} pour un composant
+  complexe (menu, dialogue, onglets…) plutôt qu'un composant fait main ; jamais de `div onClick`.
 - **Noms accessibles** : tout contrôle a un nom ; un contrôle à icône seule a un `aria-label`
   **constant** (l'état passe par `aria-expanded`/`aria-pressed`, ne pas changer le libellé en plus) ;
   icônes décoratives `aria-hidden` ; `alt` pertinent ou `alt=""` si décorative ; la cible d'un

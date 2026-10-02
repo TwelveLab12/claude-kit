@@ -42,7 +42,7 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
 | Module | Contenu |
 | --- | --- |
 | `core` (toujours) | tsconfig strict, version de Node (épinglage Volta dans `package.json` avec `run=volta`, sinon `.nvmrc`), lue aussi par la CI, `.gitattributes` LF, `typecheck` avec `next typegen` |
-| `tailwind-shadcn` | Tailwind v4 + shadcn/ui sur **Radix** (pas Base UI) |
+| `tailwind-shadcn` | Tailwind v4 + shadcn/ui. Nouveau projet : **Base UI** par défaut (défaut de shadcn) ou Radix (`uiBase`) ; projet existant : la bibliothèque installée est détectée et conservée |
 | `eslint` | flat config Next + convention `_` |
 | `prettier` | printWidth 100, plugin Tailwind, `format:check` en CI |
 | `husky` | pre-commit lint-staged (jamais les tests) |

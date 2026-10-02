@@ -401,6 +401,28 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
   // {{src}} var follow the project's layout instead of assuming create-next-app's --src-dir.
   vars.src ??= fresh || fs.existsSync(path.join(target, "src")) ? "src/" : "";
   const targetPath = (rel) => rel.replace(/^__src__[\\/]/, vars.src);
+  // shadcn primitives library. New project: Base UI unless `--var uiBase=radix` (Base UI is
+  // shadcn's current default). Existing project: whatever is installed, never switched.
+  if (selected.has("tailwind-shadcn")) {
+    const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+    const installed =
+      "@base-ui/react" in deps
+        ? "base"
+        : Object.keys(deps).some((d) => d === "radix-ui" || d.startsWith("@radix-ui/"))
+          ? "radix"
+          : undefined;
+    vars.uiBase ??= fresh ? "base" : (installed ?? "base");
+    if (!["base", "radix"].includes(vars.uiBase)) {
+      throw new Error(`uiBase doit valoir base ou radix (reçu : ${vars.uiBase})`);
+    }
+    if (installed && installed !== vars.uiBase) {
+      report.conflicts.push({ field: "uiBase", current: installed, kit: vars.uiBase });
+    }
+    const radix = vars.uiBase === "radix";
+    vars.uiLib = radix ? "Radix UI" : "Base UI";
+    vars.uiDependency = radix ? "radix-ui" : "@base-ui/react";
+    vars.uiForbidden = radix ? "@base-ui/react" : "radix-ui";
+  }
   const render = makeRenderer({ vars, selected, report });
   const renderIf = (key) => render(`{{#if ${key}}}1{{/if}}`) === "1";
   const proposalsDir = path.join(os.tmpdir(), `claude-kit-proposals-${Date.now()}`);
@@ -589,15 +611,19 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
   for (const mod of mods) {
     if (!mod.check) continue;
     const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-    const ok = mod.check.dependency in deps && !(mod.check.forbidden in deps);
-    report.checks.push({ module: mod.id, ok, expect: mod.check });
+    const expect = Object.fromEntries(
+      Object.entries(mod.check).map(([key, value]) => [key, render(value)]),
+    );
+    const ok = expect.dependency in deps && !(expect.forbidden in deps);
+    report.checks.push({ module: mod.id, ok, expect });
   }
 
   // 7. Lock file.
   const lock = {
     kitVersion: KIT_VERSION,
     modules: [...selected],
-    vars: baseVars,
+    // The UI library is recorded once chosen or detected, so later syncs never re-decide it.
+    vars: vars.uiBase ? { ...baseVars, uiBase: vars.uiBase } : baseVars,
     updatedAt: new Date().toISOString().slice(0, 10),
   };
   write(LOCK_PATH, toJson(lock));

@@ -36,7 +36,7 @@ lecture du RGAA laisse une marge, à trancher en connaissance de cause.
 | 4. Multimédia | — | sous-titres, transcriptions, contrôles | lecture des médias | à évaluer |
 | 5. Tableaux | axe (en-têtes de cellules) | `<th>`, `scope`, `caption` | en-têtes annoncés au lecteur d'écran | à évaluer |
 | 6. Liens | `anchor-is-valid`, axe `link-name` | intitulés explicites, liens à icône nommés | intitulés compris hors contexte, nouvelle fenêtre signalée | à évaluer |
-| 7. Scripts | règles de gestionnaires, axe `aria-*` | composants natifs ou Radix, focus rendu, messages de statut | composants au clavier et au lecteur d'écran | à évaluer |
+| 7. Scripts | règles de gestionnaires, axe `aria-*` | composants natifs ou primitives de la bibliothèque UI, focus rendu, messages de statut | composants au clavier et au lecteur d'écran | à évaluer |
 | 8. Éléments obligatoires | axe `html-has-lang`, `document-title` | `lang`, un titre par route | pertinence des titres (8.6), validité HTML (8.2), changements de langue (8.7) | à évaluer |
 | 9. Structuration | axe `heading-order`, `landmark-*`, `list` | plan des titres, repères, listes | plan et repères au lecteur d'écran | à évaluer |
 | 10. Présentation | axe `target-size`, reflow 320 px, focus visible | focus global, `prefers-reduced-motion`, cibles | zoom 200 % (10.4), espacement du texte (10.12) | à évaluer |

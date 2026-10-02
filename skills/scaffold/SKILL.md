@@ -22,7 +22,7 @@ commandes ci-dessous utilisent `node "$KIT/scripts/apply.mjs" …`.
 - Lancer `node "$KIT/scripts/apply.mjs" list` pour le catalogue à jour (ids, titres, défauts,
   dépendances entre modules). Ne te fie pas à une liste mémorisée : le catalogue évolue.
 - En adoption, détecter l'existant pour **pré-cocher** les modules : `package.json` (eslint,
-  prettier, husky, vitest, @playwright/test, tailwindcss, radix-ui…), `.github/workflows/`,
+  prettier, husky, vitest, @playwright/test, tailwindcss, radix-ui ou @base-ui/react…), `.github/workflows/`,
   `.github/dependabot.yml`, `docs/adr/`, labels et board (`gh label list`, `gh project list`).
 
 ## 2. Questions (AskUserQuestion)
@@ -41,7 +41,14 @@ du catalogue marqués « (Recommended) » en premier, `description` = une phrase
 2. Board (si `github-workflow`) : « Nouveau board dédié à ce dépôt (Recommended) » (convention :
    un board par dépôt), « Board existant » (en adoption, s'il suit déjà ce repo :
    `gh project list --owner <owner>`), ou « Pas de board pour l'instant »
-3. Extras : `docs-adr`, `claude-settings` (cochés par défaut)
+3. **Création avec `tailwind-shadcn`** : bibliothèque de primitives sous les composants shadcn,
+   « Base UI (Recommended) » (défaut actuel de shadcn, `--var uiBase=base`) ou « Radix »
+   (`--var uiBase=radix`, ex. pour partager des composants avec un projet existant sur Radix). Les
+   extras `docs-adr` et `claude-settings` sont alors inclus d'office (le dire dans le récapitulatif,
+   retirables ensuite par `/claude-kit:sync -<module>`).
+   **Sinon** (adoption, ou pas de shadcn) : extras `docs-adr`, `claude-settings` (cochés par
+   défaut). En adoption, la bibliothèque n'est **jamais** demandée : le script détecte celle qui
+   est installée et la conserve ; ne pas proposer de migration.
 4. Dépôt GitHub (création uniquement) : « Créer le repo maintenant (privé) », « … (public) »,
    « Plus tard »
 

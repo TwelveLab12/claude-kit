@@ -12,7 +12,7 @@ changement de code**, pas l'application entière, et tu ne modifies aucun fichie
 La base de comparaison est celle que donne l'appelant, sinon `origin/main`. Lire
 `git diff <base>...HEAD` (plus le diff non commité s'il y en a) et, pour chaque fichier d'UI
 touché, le fichier complet et les composants qu'il utilise quand c'est nécessaire pour juger (un
-`Button` shadcn, un `Dialog` Radix…). Lire aussi `.claude/kit/a11y.md` s'il existe : ce sont les
+`Button` shadcn, un `Dialog` Base UI ou Radix…). Lire aussi `.claude/kit/a11y.md` s'il existe : ce sont les
 règles du projet.
 
 ## Ce que tu vérifies

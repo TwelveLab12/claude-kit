@@ -1,14 +1,14 @@
 {
   "id": "tailwind-shadcn",
-  "title": "Tailwind CSS v4 + shadcn/ui (Radix)",
-  "description": "Tailwind v4 (@theme dans globals.css, pas de tailwind.config.js) + shadcn/ui initialisé sur Radix UI, pas Base UI.",
+  "title": "Tailwind CSS v4 + shadcn/ui (Base UI ou Radix)",
+  "description": "Tailwind v4 (@theme dans globals.css, pas de tailwind.config.js) + shadcn/ui. Nouveau projet : primitives Base UI (défaut actuel de shadcn) ou Radix au choix (var uiBase). Projet existant : la bibliothèque en place est détectée et conservée.",
   "group": "ui",
   "default": true,
   "createFlags": ["--tailwind"],
   "createFlagsIfAbsent": ["--no-tailwind"],
   "post": [
-    { "run": "{{pm}} dlx shadcn@latest init -b radix -p nova -y", "when": "fresh" },
+    { "run": "{{pm}} dlx shadcn@latest init -b {{uiBase}} -p nova -y", "when": "fresh" },
     { "run": "{{pm}} dlx shadcn@latest add button -y", "when": "fresh" }
   ],
-  "check": { "dependency": "radix-ui", "forbidden": "@base-ui/react" }
+  "check": { "dependency": "{{uiDependency}}", "forbidden": "{{uiForbidden}}" }
 }

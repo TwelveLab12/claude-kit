@@ -47,6 +47,16 @@ Retours d'expérience de BrunoSchvartzDev (chantier accessibilité #99 à #129, 
   `sudo`, la liste venant de `playwright install-deps --dry-run` lancé sans privilèges (un shim
   Volta ne fonctionne pas sous `sudo`).
 
+### UI
+
+- **Base UI ou Radix, au choix pour un nouveau projet**, Base UI par défaut : c'est désormais la
+  base par défaut de shadcn (preset `base-nova`). Variable `uiBase` (`base` | `radix`), passée à
+  `shadcn init -b`, inscrite dans le lockfile.
+- **Projet existant** : la bibliothèque installée (`@base-ui/react` ou `radix-ui`/`@radix-ui/*`)
+  est détectée et conservée, jamais remplacée. Les règles, le contrôle de dépendance et les
+  commandes shadcn suivent la bibliothèque du projet. Avant, le kit imposait Radix et interdisait
+  Base UI.
+
 ### Socle
 
 - Règle « faits dérivés » : un chiffre qui se déduit d'une source du dépôt est calculé, jamais
