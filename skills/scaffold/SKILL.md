@@ -38,8 +38,9 @@ du catalogue marqués « (Recommended) » en premier, `description` = une phrase
 
 **Appel 2 : options** (ne poser que ce qui s'applique)
 1. Lanceur : `pnpm` (Recommended) ou `volta` (commandes `volta run pnpm …`, alias shell `vrp`)
-2. Board (si `github-workflow`) : proposer les boards existants (`gh project list --owner <owner>`),
-   « Nouveau board pour ce projet » ou « Pas de board pour l'instant »
+2. Board (si `github-workflow`) : « Nouveau board dédié à ce dépôt (Recommended) » (convention :
+   un board par dépôt), « Board existant » (en adoption, s'il suit déjà ce repo :
+   `gh project list --owner <owner>`), ou « Pas de board pour l'instant »
 3. Extras : `docs-adr`, `claude-settings` (cochés par défaut)
 4. Dépôt GitHub (création uniquement) : « Créer le repo maintenant (privé) », « … (public) »,
    « Plus tard »
@@ -50,10 +51,12 @@ script, inutile de les demander.
 ## 3. Construire la commande
 
 - Variables (`--var clé=valeur`) : `owner` (compte GitHub : `gh api user --jq .login`),
-  `boardNumber`, `run` (`pnpm` ou `volta`), et pour un **nouveau** board les statuts par défaut de
-  GitHub : `statusTodo=Todo statusDoing="In Progress" statusDone=Done`. Les boards existants de
-  TwelveLab12 utilisent « À faire / En cours / Terminé » (défaut du kit) : vérifier avec
+  `boardNumber`, `run` (`pnpm` ou `volta`). Les statuts par défaut du kit sont « Backlog / À faire /
+  En cours / Terminé », ceux que crée `board.mjs init`. Pour un board existant aux colonnes
+  différentes, passer `statusBacklog`/`statusTodo`/`statusDoing`/`statusDone` d'après
   `gh project field-list <n> --owner <owner> --format json`.
+- Un nouveau board n'a pas encore de numéro : le créer à l'étape 6, puis relancer
+  `apply . --from-lock --var boardNumber=<n> --no-install` pour l'inscrire dans les règles.
 - Création : `node "$KIT/scripts/apply.mjs" create <dossier> --modules a,b,c --var … [--react-compiler]`.
 - Adoption : **toujours d'abord** `apply <dossier> --modules … --var … --dry-run`, puis :
   - présenter `written` (fichiers gérés créés ou remplacés), `conflicts` (scripts/champs
@@ -96,13 +99,14 @@ pas maquiller un échec : le signaler avec la sortie.
 - Actions visibles à l'extérieur → **confirmer explicitement avant chacune** : `gh repo create
   <owner>/<nom> --private|--public --source . --push`, labels
   (`gh label create <name> --color <c> --description <d> --force` pour chaque entrée de
-  `$KIT/modules/github-workflow/labels.json`), board (`gh project create --owner <owner> --title
-  <nom>` si nouveau, puis `gh project link <n> --owner <owner> --repo <owner>/<nom>`).
+  `$KIT/modules/github-workflow/labels.json` ; une entrée avec `"if": "<module>"` seulement si ce
+  module est sélectionné), board : `node "$KIT/scripts/board.mjs" init --repo <owner>/<nom>`
+  (crée ou réutilise le board du même titre, configure les 4 colonnes, le lie au dépôt).
 - Les commandes `gh project` exigent le scope `project` : en cas d'erreur de scope, demander à
   l'utilisateur de lancer lui-même `gh auth refresh -s project`.
-- Recommander (sans pouvoir le faire à sa place, c'est dans l'UI GitHub) d'activer les workflows
-  intégrés du board : *Auto-add to project* (filtre `repo:<owner>/<nom>`), *Item closed* et
-  *Pull request merged* → statut terminé. Le board reste alors à jour sans effort.
+- Les workflows intégrés du board n'ont pas d'API : donner à l'utilisateur le lien du board et la
+  liste `workflowsToEnable` renvoyée par `board.mjs init`, à activer dans *Workflows*. Le board se
+  tient alors à jour seul (PR liée, PR mergée, issue fermée).
 - Vercel (`vercel-check`) : rappeler de sélectionner le check `vercelCheckName` dans Settings ›
   Deployment Checks du projet Vercel.
 

@@ -24,5 +24,10 @@ argument-hint: "[--merge]"
    clair et `Closes #n` dans le corps. Donner le lien.
 6. **Merge** (uniquement si `--merge` ou accord explicite, et CI verte : `gh pr checks`) :
    `gh pr merge --squash --delete-branch`, puis `git switch main && git pull`.
-7. **Board** : `node "$KIT/scripts/board.mjs" status <url-issue> done` si les workflows intégrés
-   du board ne l'ont pas déjà fait (vérifier avant avec `gh project item-list` si besoin).
+7. **Board** : les workflows intégrés (PR mergée, issue fermée) passent normalement la carte en
+   « Terminé ». Vérifier (`gh project item-list <n> --owner <owner> --format json`) et ne lancer
+   `node "$KIT/scripts/board.mjs" status <url-issue> done` que s'ils ne l'ont pas fait. Si c'est le
+   cas, le signaler : un workflow du board est probablement désactivé.
+8. **Suites** : ce qui a été repéré en route mais volontairement laissé de côté devient une issue,
+   en « À faire » si c'est décidé, en « Backlog » (avec la raison de l'attente) sinon, via
+   `/claude-kit:start-task --todo|--backlog`.

@@ -1,13 +1,14 @@
 {
   "id": "github-workflow",
   "title": "Workflow GitHub : issues, labels, board, PR",
-  "description": "Une issue par tâche, un label de type, suivi sur un GitHub Project (board), une branche + une PR par sujet, squash-merge. Templates d'issue/PR et commandes /claude-kit:start-task et /claude-kit:ship-task.",
+  "description": "Une issue par tâche, un label de type, un board par dépôt (Backlog / À faire / En cours / Terminé), une branche + une PR par sujet, squash-merge. Templates d'issue/PR, création du board configuré et commandes /claude-kit:start-task et /claude-kit:ship-task.",
   "group": "github",
   "default": true,
   "vars": {
     "owner": "",
     "repo": "{{projectName}}",
     "boardNumber": "",
+    "statusBacklog": "Backlog",
     "statusTodo": "À faire",
     "statusDoing": "En cours",
     "statusDone": "Terminé"
