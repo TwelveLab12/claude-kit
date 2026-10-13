@@ -21,3 +21,17 @@ jobs:
           node-version: lts/*
 
       - run: node --test "test/*.test.mjs"
+
+  # Une PR qui touche le plugin monte la version et complète le CHANGELOG (ADR 0005).
+  release-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - run: node scripts/check-release.mjs --base "origin/${{ github.base_ref }}"
