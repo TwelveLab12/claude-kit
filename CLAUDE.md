@@ -39,6 +39,9 @@ dans le système de fichiers Linux (`~/code`), pas sous `/mnt/c`. Le kit doit re
   l'échec, pas seulement que le projet sain passe.
 - Ne pas figer de version dans un module : ce qui vient avec Next est laissé à `create-next-app`,
   le reste est installé en `@latest`. Un standard qui change se traite dans le module concerné.
+- Décision structurante du kit → ADR dans [docs/adr/](docs/adr/), au format du module `docs-adr`.
+  Les lire avant un changement qui pourrait en contredire un : un ticket qui contredit un ADR passe
+  d'abord par un nouvel ADR.
 - Toute évolution visible dans un projet : bump de `version` dans `.claude-plugin/plugin.json`
   (semver : majeure si un sync demande une action manuelle) + entrée dans `CHANGELOG.md`.
 - Règles (`rules.md`) en français, courtes, impératives, avec le *pourquoi* quand il n'est pas
