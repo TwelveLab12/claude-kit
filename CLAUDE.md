@@ -12,6 +12,7 @@ node scripts/apply.mjs create <tmp> --modules all --var owner=TwelveLab12 --var 
 node scripts/apply.mjs apply <projet> --from-lock --dry-run  # plan d'un sync
 node --check scripts/*.mjs                                    # syntaxe
 node --test "test/*.test.mjs"                                 # tests rapides, sans réseau ni dépendance
+node scripts/check-release.mjs                                # version et CHANGELOG de la branche vs origin/main
 ```
 
 Tests rapides ([test/](test/)) : `node:test` seul, projets d'exemple dans `test/fixtures/`, faux
@@ -49,8 +50,12 @@ dans le système de fichiers Linux (`~/Projects`), pas sous `/mnt/c`. Le kit doi
 - Décision structurante du kit → ADR dans [docs/adr/](docs/adr/), au format du module `docs-adr`.
   Les lire avant un changement qui pourrait en contredire un : un ticket qui contredit un ADR passe
   d'abord par un nouvel ADR.
-- Toute évolution visible dans un projet : bump de `version` dans `.claude-plugin/plugin.json`
-  (semver : majeure si un sync demande une action manuelle) + entrée dans `CHANGELOG.md`.
+- Une PR qui modifie le plugin (`modules/`, `skills/`, `scripts/`, `agents/`, `hooks/`,
+  `.claude-plugin/`) monte `version` dans `.claude-plugin/plugin.json` au-dessus de celle de `main`
+  (semver : majeure si un sync demande une action manuelle, patch si rien ne change pour les
+  projets) et ajoute l'entrée `## <version>` au `CHANGELOG.md`. Vérifié en CI par
+  `scripts/check-release.mjs` (pas encore obligatoire : dépôt privé, donc CI verte exigée avant
+  tout merge) ; le merge pose le tag `v<version>` (ADR 0005).
 - Règles (`rules.md`) en français, courtes, impératives, avec le *pourquoi* quand il n'est pas
   évident.
 - Workflow Git : celui du module `github-workflow` (issue, branche, PR, squash-merge). Board du

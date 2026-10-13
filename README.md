@@ -92,7 +92,9 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
 2. `/claude-kit:audit` dans ce repo compare les modules à l'écosystème (versions, notes de version,
    recommandations officielles) et propose des issues sourcées.
 3. Une évolution = une PR sur ce repo, avec bump de `version` dans `.claude-plugin/plugin.json` et
-   une entrée dans `CHANGELOG.md`. Les projets la récupèrent via `/claude-kit:sync`.
+   une entrée dans `CHANGELOG.md`, vérifiés par `scripts/check-release.mjs` ; le merge pose le tag
+   `v<version>` ([ADR 0005](docs/adr/0005-one-version-one-code.md)). Les projets la récupèrent via
+   `/claude-kit:sync`.
 
 ## Réglages GitHub à faire à la main
 
@@ -105,3 +107,6 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
   `sudo apt-get install -y $(pnpm exec playwright install-deps --dry-run chromium 2>/dev/null | sed -n 's/^  //p')`
   (avec Volta : `volta run pnpm exec …`). Seul `apt` passe en root : un shim Volta ne fonctionne
   pas sous `sudo`.
+- Dans ce repo : protection de `main` avec le check `release-check` obligatoire (ADR 0005), dès
+  que le dépôt est public (ou avec un compte Pro) ; d'ici là, `/claude-kit:ship-task` exige une CI
+  verte avant de merger.
