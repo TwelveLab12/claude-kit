@@ -1,0 +1,29 @@
+# Pose le tag v<version> au push sur main s'il n'existe pas : chaque version publiée désigne un
+# commit précis (ADR 0005). Seul workflow du kit avec le droit d'écrire dans le dépôt.
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Tag de la version
+        run: |
+          version=$(node -p 'require("./.claude-plugin/plugin.json").version')
+          tag="v$version"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null; then
+            echo "$tag existe déjà"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "claude-kit $version"
+          git push origin "$tag"
