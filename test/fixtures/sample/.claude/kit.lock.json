@@ -1,0 +1,6 @@
+{
+  "kitVersion": "0.0.0",
+  "modules": ["core", "github-ci"],
+  "vars": { "owner": "TwelveLab12", "boardNumber": "1" },
+  "updatedAt": "2026-01-01"
+}
