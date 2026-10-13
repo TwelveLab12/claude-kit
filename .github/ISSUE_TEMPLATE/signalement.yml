@@ -1,0 +1,42 @@
+name: Signalement
+description: Un problème rencontré dans un projet équipé par le kit, à qualifier
+title: "Signalement : "
+labels: ["signalement"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Appliquer d'abord la règle de tri du CLAUDE.md du kit (« Retours des projets »). Un
+        contournement d'un fichier ou d'une règle du kit, ou un défaut reproductible sur un projet
+        généré, est une issue `bug` directe. Une issue par symptôme : si ce symptôme a déjà un
+        signalement ouvert, y ajouter l'occurrence en commentaire.
+  - type: input
+    id: project
+    attributes:
+      label: Projet
+      description: Dépôt concerné (ex. TwelveLab12/workout-manager)
+    validations:
+      required: true
+  - type: input
+    id: kit-version
+    attributes:
+      label: Version du kit
+      description: "`kitVersion` de `.claude/kit.lock.json`"
+  - type: textarea
+    id: symptom
+    attributes:
+      label: Symptôme
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Preuve
+      description: Lien du run, log ou commande qui reproduit
+    validations:
+      required: true
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Contournement éventuel
+      description: Ce que le projet a fait pour continuer, avec le lien du commit s'il y en a un

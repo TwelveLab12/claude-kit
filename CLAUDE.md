@@ -49,3 +49,21 @@ dans le système de fichiers Linux (`~/Projects`), pas sous `/mnt/c`. Le kit doi
 - Workflow Git : celui du module `github-workflow` (issue, branche, PR, squash-merge). Board du
   kit : project n°4 de `TwelveLab12`, organisé en milestones (Fondations, Fiabilité, Versions).
   Le kit n'a pas de `kit.lock.json` : passer `--owner TwelveLab12 --project 4` à `board.mjs`.
+
+## Retours des projets
+
+Un problème rencontré dans un projet qui utilise le kit se trie dans cet ordre :
+
+1. Le projet a dû contourner un fichier ou une règle du kit, ou le défaut se reproduit sur un
+   projet généré → issue `bug` sur le kit, tout de suite : le prochain sync effacerait le
+   contournement.
+2. Cause extérieure et passagère (panne GitHub, miroir apt, registre npm) → relancer une fois. Si
+   ça échoue encore, noter une occurrence sur le signalement de ce symptôme (formulaire
+   « Signalement », label `signalement`), en le créant s'il n'existe pas. Un ticket seulement si
+   le symptôme revient, ou si le kit aurait dû l'absorber (délai maximum, réessai, message clair).
+3. Problème propre au projet → il reste dans le projet. Il devient candidat pour le kit quand un
+   deuxième projet le rencontre.
+
+Une issue par symptôme : une nouvelle occurrence est un commentaire, pas une issue. Les
+signalements ouverts sont tranchés (ticket ou clôture) à la revue de pertinence qui clôt chaque
+milestone.
