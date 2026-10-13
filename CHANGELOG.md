@@ -2,6 +2,14 @@
 
 Chaque version est lue par `/claude-kit:sync` pour expliquer à un projet ce qui change.
 
+## 0.3.2 — 2026-10-13
+
+Aucune action pour les projets : rien ne change dans ce qu'un sync écrit.
+
+- Une PR qui modifie le plugin doit monter la version et compléter le CHANGELOG :
+  `scripts/check-release.mjs`, job CI `release-check`. Le merge sur `main` pose le tag
+  `v<version>` (workflow `Release`). Voir l'ADR 0005.
+
 ## 0.3.1 — 2026-10-13
 
 Aucune action pour les projets : rien ne change dans ce qu'un sync écrit.
