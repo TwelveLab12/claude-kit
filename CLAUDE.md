@@ -18,7 +18,7 @@ typecheck, format:check, lint:ci, test, build, test:e2e, puis `apply . --from-lo
 doit renvoyer `written: []` (idempotence). C'est exactement ce que fait le canary en CI.
 
 Environnement : tout l'outillage (git, gh, node, pnpm via Volta) tourne dans WSL, et les repos sont
-dans le système de fichiers Linux (`~/code`), pas sous `/mnt/c`. Le kit doit rester portable
+dans le système de fichiers Linux (`~/Projects`), pas sous `/mnt/c`. Le kit doit rester portable
 (scripts Node sans dépendance, `gh` pris dans le PATH) : le canary tourne sous Linux.
 
 ## Conventions
@@ -39,8 +39,31 @@ dans le système de fichiers Linux (`~/code`), pas sous `/mnt/c`. Le kit doit re
   l'échec, pas seulement que le projet sain passe.
 - Ne pas figer de version dans un module : ce qui vient avec Next est laissé à `create-next-app`,
   le reste est installé en `@latest`. Un standard qui change se traite dans le module concerné.
+- Décision structurante du kit → ADR dans [docs/adr/](docs/adr/), au format du module `docs-adr`.
+  Les lire avant un changement qui pourrait en contredire un : un ticket qui contredit un ADR passe
+  d'abord par un nouvel ADR.
 - Toute évolution visible dans un projet : bump de `version` dans `.claude-plugin/plugin.json`
   (semver : majeure si un sync demande une action manuelle) + entrée dans `CHANGELOG.md`.
 - Règles (`rules.md`) en français, courtes, impératives, avec le *pourquoi* quand il n'est pas
   évident.
-- Workflow Git : celui du module `github-workflow` (issue, branche, PR, squash-merge).
+- Workflow Git : celui du module `github-workflow` (issue, branche, PR, squash-merge). Board du
+  kit : project n°4 de `TwelveLab12`, organisé en milestones (Fondations, Fiabilité, Versions).
+  Le kit n'a pas de `kit.lock.json` : passer `--owner TwelveLab12 --project 4` à `board.mjs`.
+
+## Retours des projets
+
+Un problème rencontré dans un projet qui utilise le kit se trie dans cet ordre :
+
+1. Le projet a dû contourner un fichier ou une règle du kit, ou le défaut se reproduit sur un
+   projet généré → issue `bug` sur le kit, tout de suite : le prochain sync effacerait le
+   contournement.
+2. Cause extérieure et passagère (panne GitHub, miroir apt, registre npm) → relancer une fois. Si
+   ça échoue encore, noter une occurrence sur le signalement de ce symptôme (formulaire
+   « Signalement », label `signalement`), en le créant s'il n'existe pas. Un ticket seulement si
+   le symptôme revient, ou si le kit aurait dû l'absorber (délai maximum, réessai, message clair).
+3. Problème propre au projet → il reste dans le projet. Il devient candidat pour le kit quand un
+   deuxième projet le rencontre.
+
+Une issue par symptôme : une nouvelle occurrence est un commentaire, pas une issue. Les
+signalements ouverts sont tranchés (ticket ou clôture) à la revue de pertinence qui clôt chaque
+milestone.

@@ -15,7 +15,8 @@ Dans Claude Code :
 /plugin install claude-kit@twelvelab
 ```
 
-En local, pour développer le kit : `/plugin marketplace add C:\Users\bruno\code\claude-kit`.
+En local, pour développer le kit : `/plugin marketplace add <chemin absolu du clone>` (sous WSL,
+par exemple `/home/<utilisateur>/Projects/claude-kit`).
 Les projets équipés du module `claude-settings` déclarent aussi la marketplace et le plugin dans
 leur `.claude/settings.json` : un clone frais propose l'installation automatiquement.
 
@@ -81,6 +82,7 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
 - **Versions** : ce qui vient avec Next (next, react, eslint, typescript, tailwind) est laissé à
   `create-next-app@latest`, qui choisit des versions compatibles entre elles. Le reste est installé
   en `@latest`. Rien n'est figé dans le kit.
+- Les décisions structurantes du kit et leurs raisons sont dans [docs/adr/](docs/adr/).
 
 ## Faire évoluer les standards
 
