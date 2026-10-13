@@ -2,6 +2,15 @@
 
 Chaque version est lue par `/claude-kit:sync` pour expliquer à un projet ce qui change.
 
+## 0.3.1 — 2026-10-13
+
+Aucune action pour les projets : rien ne change dans ce qu'un sync écrit.
+
+- Tests rapides du kit (`node --test "test/*.test.mjs"`, sans réseau ni dépendance) : gabarits,
+  `deepMerge`, `renderCi`, `apply --from-lock` sur un projet d'exemple, `board.mjs` avec un faux
+  `gh`. Workflow CI `Tests`, séparé du canary.
+- `apply.mjs` exporte ses fonctions et ne lance sa commande que s'il est le point d'entrée.
+
 ## 0.3.0 — 2026-10-02
 
 Retours d'expérience de BrunoSchvartzDev (chantier accessibilité #99 à #129, board #132).

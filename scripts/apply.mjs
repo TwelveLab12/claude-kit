@@ -715,17 +715,26 @@ function printReport(report) {
   console.log(JSON.stringify(report, null, 2));
 }
 
-const args = parseArgs(process.argv.slice(2));
-const [command] = args._.splice(0, 1);
-try {
-  if (command === "list") cmdList();
-  else if (command === "create") await cmdCreate(args);
-  else if (command === "apply") await cmdApply(args);
-  else {
-    console.error("Commandes : list | create <dir> --modules … | apply <dir> --modules …|--from-lock");
+// Importable by the tests (test/): the command only runs when the file is the entry point.
+export { deepMerge, makeRenderer, renderCi, parseArgs, resolveSelection, loadModules, applyModules };
+
+async function main() {
+  const args = parseArgs(process.argv.slice(2));
+  const [command] = args._.splice(0, 1);
+  try {
+    if (command === "list") cmdList();
+    else if (command === "create") await cmdCreate(args);
+    else if (command === "apply") await cmdApply(args);
+    else {
+      console.error("Commandes : list | create <dir> --modules … | apply <dir> --modules …|--from-lock");
+      process.exit(1);
+    }
+  } catch (error) {
+    console.error(`claude-kit: ${error.message}`);
     process.exit(1);
   }
-} catch (error) {
-  console.error(`claude-kit: ${error.message}`);
-  process.exit(1);
+}
+
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main();
 }

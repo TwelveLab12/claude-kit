@@ -1,0 +1,18 @@
+#!/usr/bin/env node
+// Faux `gh` : enregistre chaque appel (une ligne JSON dans $FAKE_GH_LOG) et répond selon
+// $FAKE_GH_SCENARIO (JSON : { "<args joints par espace, préfixe>": { stdout, stderr, code } }).
+import fs from "node:fs";
+
+const args = process.argv.slice(2);
+fs.appendFileSync(process.env.FAKE_GH_LOG, JSON.stringify(args) + "\n");
+const scenario = JSON.parse(process.env.FAKE_GH_SCENARIO ?? "{}");
+const line = args.join(" ");
+const key = Object.keys(scenario).find((k) => line.startsWith(k));
+if (!key) {
+  process.stderr.write(`faux gh : appel imprévu : ${line}\n`);
+  process.exit(99);
+}
+const { stdout = "", stderr = "", code = 0 } = scenario[key];
+process.stdout.write(stdout);
+process.stderr.write(stderr);
+process.exit(code);

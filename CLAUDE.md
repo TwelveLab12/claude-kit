@@ -11,7 +11,14 @@ node scripts/apply.mjs list                                  # catalogue des mod
 node scripts/apply.mjs create <tmp> --modules all --var owner=TwelveLab12 --var boardNumber=1
 node scripts/apply.mjs apply <projet> --from-lock --dry-run  # plan d'un sync
 node --check scripts/*.mjs                                    # syntaxe
+node --test "test/*.test.mjs"                                 # tests rapides, sans réseau ni dépendance
 ```
+
+Tests rapides ([test/](test/)) : `node:test` seul, projets d'exemple dans `test/fixtures/`, faux
+`gh` dans `test/fakes/` (enregistre les appels, répond selon un scénario). `apply.mjs` est importable
+(il ne lance sa commande que s'il est le point d'entrée) ; `board.mjs` se teste en sous-processus.
+Un nouveau comportement du script vient avec son test, et un test doit échouer si on introduit le
+défaut. Workflow CI : `.github/workflows/test.yml`.
 
 Tester un changement : générer un projet jetable hors du repo (ex. `$(mktemp -d)/canary`), y lancer
 typecheck, format:check, lint:ci, test, build, test:e2e, puis `apply . --from-lock --no-install`
