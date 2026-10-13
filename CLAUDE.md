@@ -18,7 +18,7 @@ typecheck, format:check, lint:ci, test, build, test:e2e, puis `apply . --from-lo
 doit renvoyer `written: []` (idempotence). C'est exactement ce que fait le canary en CI.
 
 Environnement : tout l'outillage (git, gh, node, pnpm via Volta) tourne dans WSL, et les repos sont
-dans le système de fichiers Linux (`~/code`), pas sous `/mnt/c`. Le kit doit rester portable
+dans le système de fichiers Linux (`~/Projects`), pas sous `/mnt/c`. Le kit doit rester portable
 (scripts Node sans dépendance, `gh` pris dans le PATH) : le canary tourne sous Linux.
 
 ## Conventions
@@ -46,4 +46,6 @@ dans le système de fichiers Linux (`~/code`), pas sous `/mnt/c`. Le kit doit re
   (semver : majeure si un sync demande une action manuelle) + entrée dans `CHANGELOG.md`.
 - Règles (`rules.md`) en français, courtes, impératives, avec le *pourquoi* quand il n'est pas
   évident.
-- Workflow Git : celui du module `github-workflow` (issue, branche, PR, squash-merge).
+- Workflow Git : celui du module `github-workflow` (issue, branche, PR, squash-merge). Board du
+  kit : project n°4 de `TwelveLab12`, organisé en milestones (Fondations, Fiabilité, Versions).
+  Le kit n'a pas de `kit.lock.json` : passer `--owner TwelveLab12 --project 4` à `board.mjs`.

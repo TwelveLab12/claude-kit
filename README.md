@@ -15,7 +15,8 @@ Dans Claude Code :
 /plugin install claude-kit@twelvelab
 ```
 
-En local, pour développer le kit : `/plugin marketplace add C:\Users\bruno\code\claude-kit`.
+En local, pour développer le kit : `/plugin marketplace add <chemin absolu du clone>` (sous WSL,
+par exemple `/home/<utilisateur>/Projects/claude-kit`).
 Les projets équipés du module `claude-settings` déclarent aussi la marketplace et le plugin dans
 leur `.claude/settings.json` : un clone frais propose l'installation automatiquement.
 
