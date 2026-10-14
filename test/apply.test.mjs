@@ -231,3 +231,11 @@ for (const [run, source, major] of [
     assert.ok(!synced.commands.some((c) => c.cmd.includes("@types/node")));
   });
 }
+
+test("dependabot.yml ignore les bumps majeurs de @types/node", () => {
+  const yml = fs.readFileSync(
+    path.join(KIT_ROOT, "modules/dependabot/managed/.github/dependabot.yml"),
+    "utf8",
+  );
+  assert.match(yml, /dependency-name: "@types\/node"\s+update-types: \["version-update:semver-major"\]/);
+});
