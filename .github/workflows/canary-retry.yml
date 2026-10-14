@@ -1,0 +1,40 @@
+# Relance du canary planifié : un run ne peut pas se relancer lui-même tant qu'il tourne. Premier
+# échec → une relance, pour écarter une panne passagère (miroirs apt, registre npm). Échec de la
+# relance → commentaire sur l'issue « Canary en échec » ouverte, ou ouverture de l'issue.
+name: Canary (relance)
+
+on:
+  workflow_run:
+    workflows: [Canary]
+    types: [completed]
+
+jobs:
+  retry:
+    # Un job qui dépasse son délai maximum peut finir en failure, timed_out ou cancelled selon
+    # les sources : les trois déclenchent la relance.
+    if: >-
+      github.event.workflow_run.event == 'schedule' &&
+      contains(fromJSON('["failure", "timed_out", "cancelled"]'), github.event.workflow_run.conclusion)
+    runs-on: ubuntu-latest
+    # Attend la relance, elle-même limitée à 15 minutes.
+    timeout-minutes: 25
+    permissions:
+      actions: write
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - name: Relancer, puis signaler un nouvel échec
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: >-
+          node scripts/canary-retry.mjs --repo "$GITHUB_REPOSITORY" --run-id "$RUN_ID"
+          --attempt "$RUN_ATTEMPT" --url "$RUN_URL"

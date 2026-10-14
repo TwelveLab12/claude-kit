@@ -1,7 +1,8 @@
 # Canary : génère chaque semaine un projet neuf avec TOUS les modules sur les dernières versions
 # (create-next-app@latest, outils @latest), puis lance la chaîne complète. Si un standard de
 # l'écosystème bouge (majeure, option dépréciée, défaut de CLI qui change…), on le sait avant de
-# scaffolder un vrai projet. Tourne aussi sur chaque PR du kit.
+# scaffolder un vrai projet. Tourne aussi sur chaque PR du kit. Un échec planifié est relancé une
+# fois, puis signalé par une issue : voir canary-retry.yml.
 name: Canary
 
 on:
@@ -15,9 +16,11 @@ on:
 jobs:
   canary:
     runs-on: ubuntu-latest
+    # Un run vert prend 2 minutes : sans délai maximum, une étape bloquée (miroirs apt de
+    # `playwright install --with-deps`) tourne 360 minutes.
+    timeout-minutes: 15
     permissions:
       contents: read
-      issues: write
     steps:
       - uses: actions/checkout@v7
 
@@ -59,12 +62,3 @@ jobs:
           node "$GITHUB_WORKSPACE/scripts/apply.mjs" apply . --from-lock --no-install \
             | sed -n '/claude-kit report/,$p' | tail -n +2 > report.json
           node -e 'const r=require("./report.json"); if (r.written.length) { console.error("Sync non idempotent:", r.written); process.exit(1); }'
-
-      - name: Ouvrir une issue si le canary planifié casse
-        if: failure() && github.event_name == 'schedule'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh issue create --repo "$GITHUB_REPOSITORY" --label chore \
-            --title "Canary en échec ($(date +%F))" \
-            --body "Le scaffold avec tous les modules ne passe plus : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}. Probablement une évolution de l'écosystème : lancer /claude-kit:audit."
