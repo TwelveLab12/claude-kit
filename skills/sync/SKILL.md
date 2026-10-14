@@ -21,6 +21,11 @@ argument-hint: "[+module] [-module]"
    - `installed` : dépendances manquantes qui seront ajoutées ;
    - `conflicts` : champs `package.json` qui diffèrent du kit (l'existant est conservé : proposer
      l'alignement seulement s'il est justifié) ;
+   - `nodeTypes` : si `ok` vaut `false`, `@types/node` n'est pas à la majeure de Node (`nodeMajor`,
+     lue dans `source`). Le sync ne le modifie pas : proposer
+     `pnpm add -D @types/node@^<nodeMajor>` (avec Volta : `volta run pnpm add …`). Si `ok` vaut
+     `null`, la majeure de Node est indéterminée (alias comme `lts/*` dans `.nvmrc`) : le dire, sans
+     proposer de version ;
    - `seedDiffers` : fichiers possédés par le projet (tsconfig, eslint/vitest/playwright config…)
      qui diffèrent du modèle actuel. Comparer au fichier `proposal` et proposer **uniquement** les
      changements qui viennent du kit (nouvelle option, correctif), pas d'écraser les

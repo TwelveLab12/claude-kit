@@ -19,7 +19,8 @@ qu'au dev/build/typegen, et sans eux `tsc` échoue sur un clone frais.
 Version de Node : {{#if volta}}épinglée par Volta dans `package.json` (champ `volta`), que Volta
 applique en local et que la CI lit aussi. La changer avec `volta pin node@<version>`, jamais en
 ajoutant un `.nvmrc` (deux sources finiraient par diverger).{{/if}}{{#if nodeFromNvmrc}}`.nvmrc`, lu
-aussi par la CI.{{/if}}
+aussi par la CI.{{/if}} `@types/node` suit la majeure de Node (`{{run}} add -D @types/node@^<majeure>`
+quand on change Node) : les types doivent décrire l'exécution, pas la dernière version publiée.
 
 ## TypeScript
 

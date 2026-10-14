@@ -2,6 +2,26 @@
 
 Chaque version est lue par `/claude-kit:sync` pour expliquer à un projet ce qui change.
 
+## 0.5.0 — 2026-10-14
+
+Le sync réécrit `.github/dependabot.yml` et les règles `core` et `dependabot`. Aucune action si
+`@types/node` est déjà à la majeure de Node (`nodeTypes.ok` vaut `true` dans le rapport). Sinon,
+l'aligner avec la commande proposée : Dependabot ne proposera plus ce bump majeur.
+
+- **`@types/node` suit la majeure de Node**, pas la dernière publiée (#2, ADR 0007). Un projet
+  neuf reçoit `@types/node@^<majeure de Node>` (lue dans `volta.node`, sinon `.nvmrc`) à la place
+  du `^20` de `create-next-app`.
+- `dependabot.yml` ignore les bumps **majeurs** de `@types/node` : la majeure change avec
+  l'épinglage de Node.
+- Le rapport d'`apply` contient `nodeTypes` (`ok`, `nodeMajor`, `source`, `types`).
+  `/claude-kit:sync` et `/claude-kit:audit` signalent `ok: false` et proposent la commande
+  d'alignement. `ok: null` veut dire que la majeure de Node est indéterminée (alias comme `lts/*`
+  dans `.nvmrc`), et rien n'est proposé. Un sync ne modifie jamais les dépendances d'un projet
+  existant.
+
+Dans le kit : le canary vérifie que le projet généré a `@types/node` à la majeure de `.nvmrc`
+(sans Volta : le cas Volta est couvert par les tests rapides). ADR 0007.
+
 ## 0.4.0 — 2026-10-14
 
 Le sync réécrit `.github/workflows/ci.yml`. Aucune action manuelle.
