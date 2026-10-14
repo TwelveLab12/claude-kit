@@ -66,6 +66,63 @@ test("renderCi : Node lu dans package.json avec Volta, .nvmrc sinon", () => {
   assert.match(renderCi(selected, {}), /node-version-file: \.nvmrc/);
 });
 
+// Les trois variantes du ci.yml qui changent les permissions ou les jobs.
+const CI_BASE = ["core", "github-ci", "prettier", "eslint", "vitest", "playwright", "a11y"];
+const CI_VARIANTS = {
+  standard: { selected: CI_BASE, vars: {} },
+  "vercel-check": {
+    selected: [...CI_BASE, "vercel-check"],
+    vars: { vercelCheckName: "Vercel - demo: ci" },
+  },
+  "a11yGate=advisory": { selected: CI_BASE, vars: { a11yGate: "advisory" } },
+};
+const renderVariant = ({ selected, vars }) => renderCi(new Set(selected), { volta: "1", ...vars });
+
+// Découpe le ci.yml en jobs : { nom: texte du job }.
+const ciJobs = (ci) =>
+  Object.fromEntries(
+    ci
+      .split("\njobs:\n")[1]
+      .split(/\n(?=  [\w-]+:\n)/)
+      .map((block) => [block.match(/^  ([\w-]+):/m)[1], block]),
+  );
+
+// Mettre à jour après un changement voulu : node --test --test-update-snapshots "test/*.test.mjs"
+for (const [name, variant] of Object.entries(CI_VARIANTS)) {
+  test(`renderCi : instantané du ci.yml (${name})`, (t) => {
+    t.assert.snapshot(renderVariant(variant), { serializers: [(v) => v] });
+  });
+}
+
+test("renderCi : actions: read si et seulement si vercel-check est actif", () => {
+  for (const [name, variant] of Object.entries(CI_VARIANTS)) {
+    const vercel = variant.selected.includes("vercel-check");
+    assert.equal(/^ {6}actions: read$/m.test(renderVariant(variant)), vercel, name);
+  }
+});
+
+test("renderCi : chaque job a un délai maximum", () => {
+  for (const [name, variant] of Object.entries(CI_VARIANTS)) {
+    const jobs = ciJobs(renderVariant(variant));
+    assert.ok(Object.keys(jobs).length > 0, name);
+    for (const [job, text] of Object.entries(jobs)) {
+      assert.match(text, /^ {4}timeout-minutes: \d+$/m, `${name} : job ${job}`);
+    }
+  }
+});
+
+test("renderCi : navigateurs Playwright en cache avant chaque installation", () => {
+  for (const [name, variant] of Object.entries(CI_VARIANTS)) {
+    for (const [job, text] of Object.entries(ciJobs(renderVariant(variant)))) {
+      if (!text.includes("playwright install")) continue;
+      const cache = text.indexOf("path: ~/.cache/ms-playwright");
+      assert.ok(cache !== -1, `${name} : job ${job} sans cache`);
+      assert.ok(cache < text.indexOf("playwright install"), `${name} : job ${job}`);
+      assert.match(text, /key: playwright-.*steps\.playwright\.outputs\.version/);
+    }
+  }
+});
+
 test("resolveSelection : core toujours présent, dépendances ajoutées, ordre du manifeste", () => {
   const all = loadModules();
   const ids = resolveSelection(all, ["github-ci"]).map((m) => m.id);

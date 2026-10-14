@@ -2,6 +2,26 @@
 
 Chaque version est lue par `/claude-kit:sync` pour expliquer à un projet ce qui change.
 
+## 0.4.0 — 2026-10-14
+
+Le sync réécrit `.github/workflows/ci.yml`. Aucune action manuelle.
+
+- **Vercel Deployment Check** : le job reçoit `actions: read` en plus de `statuses: write`.
+  L'action de Vercel lit les jobs du run, et sans cette permission la CI était rouge dès le
+  premier run (`Resource not accessible by integration`). Un projet qui avait ajouté
+  `actions: read` à la main le retrouve dans le fichier généré : rien à refaire.
+- **Délai maximum** : chaque job s'arrête au bout de 15 minutes (`timeout-minutes`), au lieu des
+  360 minutes de GitHub. Une installation de Chromium bloquée échoue vite au lieu de laisser le
+  check Vercel en attente.
+- **Cache des navigateurs Playwright** (`~/.cache/ms-playwright`, clé sur la version de
+  Playwright). `--with-deps` installe toujours les dépendances système.
+- `actions/upload-artifact` passe de v5 à v7. Un projet que Dependabot avait monté en v6 passe en
+  v7.
+
+Dans le kit : un échec planifié du canary est relancé une fois (`canary-retry.yml`,
+`scripts/canary-retry.mjs`). Si la relance échoue aussi, l'issue « Canary en échec » ouverte
+reçoit un commentaire, ou est ouverte. Le `ci.yml` rendu est figé dans un instantané de test.
+
 ## 0.3.2 — 2026-10-13
 
 Aucune action pour les projets : rien ne change dans ce qu'un sync écrit.

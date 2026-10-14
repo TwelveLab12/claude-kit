@@ -12,12 +12,15 @@ node scripts/apply.mjs create <tmp> --modules all --var owner=TwelveLab12 --var 
 node scripts/apply.mjs apply <projet> --from-lock --dry-run  # plan d'un sync
 node --check scripts/*.mjs                                    # syntaxe
 node --test "test/*.test.mjs"                                 # tests rapides, sans réseau ni dépendance
+node --test --test-update-snapshots "test/*.test.mjs"         # régénère les instantanés après un changement voulu
 node scripts/check-release.mjs                                # version et CHANGELOG de la branche vs origin/main
 ```
 
 Tests rapides ([test/](test/)) : `node:test` seul, projets d'exemple dans `test/fixtures/`, faux
 `gh` dans `test/fakes/` (enregistre les appels, répond selon un scénario). `apply.mjs` est importable
-(il ne lance sa commande que s'il est le point d'entrée) ; `board.mjs` se teste en sous-processus.
+(il ne lance sa commande que s'il est le point d'entrée) ; `board.mjs` et `canary-retry.mjs` se
+testent en sous-processus. Le `ci.yml` rendu est figé dans `test/apply.test.mjs.snapshot` : un
+changement de `renderCi` se relit dans le diff de ce fichier.
 Un nouveau comportement du script vient avec son test, et un test doit échouer si on introduit le
 défaut. Workflow CI : `.github/workflows/test.yml`.
 
