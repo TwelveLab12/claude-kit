@@ -190,6 +190,9 @@ function ciStepList(selected) {
   ].filter(Boolean);
 }
 
+// A green run takes 5 to 8 minutes (workout-manager, October 2026).
+const JOB_TIMEOUT_MINUTES = 15;
+
 function renderCi(selected, vars) {
   const lines = [
     "# Géré par claude-kit : régénéré par /claude-kit:sync, ne pas éditer à la main.",
@@ -203,10 +206,15 @@ function renderCi(selected, vars) {
     "jobs:",
     "  build:",
     "    runs-on: ubuntu-latest",
+    // Without a cap, a stuck step (apt mirrors during `playwright install --with-deps`) runs for
+    // GitHub's 360-minute default, and the Vercel check stays pending all along.
+    `    timeout-minutes: ${JOB_TIMEOUT_MINUTES}`,
     "    permissions:",
     "      contents: read",
   ];
-  if (selected.has("vercel-check")) lines.push("      statuses: write");
+  // The Vercel status action lists the run's jobs (actions: read) to report this one's outcome as
+  // a commit status (statuses: write).
+  if (selected.has("vercel-check")) lines.push("      actions: read", "      statuses: write");
   lines.push("    steps:", "      - uses: actions/checkout@v7", "");
   if (selected.has("vercel-check")) {
     lines.push(
@@ -230,9 +238,24 @@ function renderCi(selected, vars) {
     "",
     "      - run: pnpm install --frozen-lockfile",
   ];
+  // Browsers cached per Playwright version. `--with-deps` still installs the system libraries
+  // (apt), which the cache does not cover.
+  const playwrightInstall = [
+    "",
+    "      - name: Version de Playwright",
+    "        id: playwright",
+    `        run: echo "version=$(pnpm exec playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"`,
+    "",
+    "      - uses: actions/cache@v6",
+    "        with:",
+    "          path: ~/.cache/ms-playwright",
+    "          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}",
+    "",
+    "      - run: pnpm exec playwright install --with-deps chromium",
+  ];
   const playwrightReport = (name) => [
     "",
-    "      - uses: actions/upload-artifact@v5",
+    "      - uses: actions/upload-artifact@v7",
     "        if: failure()",
     "        with:",
     `          name: ${name}`,
@@ -246,7 +269,7 @@ function renderCi(selected, vars) {
   lines.push(...setup);
   for (const step of ciStepList(selected)) {
     if (step === "test:e2e") {
-      lines.push("", "      - run: pnpm exec playwright install --with-deps chromium");
+      lines.push(...playwrightInstall);
       lines.push("", `      - run: pnpm test:e2e${advisory ? " --grep-invert @a11y" : ""}`);
     } else lines.push("", `      - run: pnpm ${step}`);
   }
@@ -261,14 +284,14 @@ function renderCi(selected, vars) {
       "  a11y:",
       "    runs-on: ubuntu-latest",
       "    continue-on-error: true",
+      `    timeout-minutes: ${JOB_TIMEOUT_MINUTES}`,
       "    permissions:",
       "      contents: read",
       "    steps:",
       "      - uses: actions/checkout@v7",
       "",
       ...setup,
-      "",
-      "      - run: pnpm exec playwright install --with-deps chromium",
+      ...playwrightInstall,
       "",
       "      - run: pnpm build",
       "",
