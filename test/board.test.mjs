@@ -1,12 +1,7 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
-import fs from "node:fs";
-import path from "node:path";
 import { test } from "node:test";
-import { KIT_ROOT, tmpDir } from "./helpers.mjs";
+import { runWithFakeGh } from "./helpers.mjs";
 
-const BOARD = path.join(KIT_ROOT, "scripts", "board.mjs");
-const FAKES = path.join(KIT_ROOT, "test", "fakes");
 const URL = "https://github.com/o/r/issues/1";
 
 const STATUS_FIELD = {
@@ -29,28 +24,7 @@ const happy = {
   "project item-edit": {},
 };
 
-// Lance board.mjs avec le faux gh en tête du PATH ; renvoie la sortie et les appels reçus.
-function board(args, scenario) {
-  const cwd = tmpDir();
-  const log = path.join(cwd, "gh.log");
-  fs.writeFileSync(log, "");
-  const result = spawnSync("node", [BOARD, ...args], {
-    cwd,
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      PATH: `${FAKES}${path.delimiter}${process.env.PATH}`,
-      FAKE_GH_LOG: log,
-      FAKE_GH_SCENARIO: JSON.stringify(scenario),
-    },
-  });
-  const calls = fs
-    .readFileSync(log, "utf8")
-    .split("\n")
-    .filter(Boolean)
-    .map((l) => JSON.parse(l));
-  return { ...result, calls };
-}
+const board = (args, scenario) => runWithFakeGh("board.mjs", args, scenario);
 
 test("board add --status doing : ajoute l'item puis fixe « En cours »", () => {
   const r = board(["add", URL, "--status", "doing", "--owner", "o", "--project", "4"], happy);
