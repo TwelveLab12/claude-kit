@@ -1,6 +1,7 @@
 # 0002 — Propriété des fichiers : managed, seed, merge
 
-**Statut** : Acceptée (décision de la 0.1.0, 28/09/2026 ; consignée le 13/10/2026)
+**Statut** : Acceptée (décision de la 0.1.0, 28/09/2026 ; consignée le 13/10/2026). Modifiée par
+l'ADR 0008 : un fichier managed modifié par le projet n'est plus réécrit.
 
 ## Contexte
 
