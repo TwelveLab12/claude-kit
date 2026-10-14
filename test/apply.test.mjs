@@ -8,6 +8,7 @@ import {
   deepMerge,
   loadModules,
   makeRenderer,
+  nodeTypesStatus,
   renderCi,
   resolveSelection,
 } from "../scripts/apply.mjs";
@@ -179,3 +180,54 @@ test("apply.mjs en ligne de commande : list renvoie le catalogue", () => {
   });
   assert.ok(JSON.parse(out).modules.some((m) => m.id === "core"));
 });
+
+test("nodeTypesStatus : la majeure de Node vient de volta.node, sinon .nvmrc, sinon du kit", () => {
+  const dir = copyFixture("sample");
+  const pkg = { devDependencies: { "@types/node": "^20.19.0" } };
+  const vars = { nodeVersion: "24" };
+  assert.equal(nodeTypesStatus({}, dir, vars), null);
+  const kit = nodeTypesStatus(pkg, dir, vars);
+  assert.deepEqual([kit.source, kit.nodeMajor, kit.ok], ["nodeVersion du kit", "24", false]);
+  fs.writeFileSync(path.join(dir, ".nvmrc"), "v22.1.0\n");
+  const nvmrc = nodeTypesStatus(pkg, dir, vars);
+  assert.deepEqual([nvmrc.source, nvmrc.nodeMajor, nvmrc.ok], [".nvmrc", "22", false]);
+  const volta = nodeTypesStatus({ ...pkg, volta: { node: "20.19.0" } }, dir, vars);
+  assert.deepEqual([volta.source, volta.nodeMajor, volta.ok], ["volta.node", "20", true]);
+});
+
+test("nodeTypesStatus : un alias de version de Node donne ok: null, jamais la version du kit", () => {
+  const dir = copyFixture("sample");
+  const pkg = { devDependencies: { "@types/node": "^20.19.0" } };
+  fs.writeFileSync(path.join(dir, ".nvmrc"), "lts/iron\n");
+  const alias = nodeTypesStatus(pkg, dir, { nodeVersion: "24" });
+  assert.deepEqual([alias.source, alias.nodeMajor, alias.ok], [".nvmrc", null, null]);
+  // Aucune majeure connue, ni pour Node ni pour les types : indéterminé, pas « aligné ».
+  fs.rmSync(path.join(dir, ".nvmrc"));
+  const latest = { devDependencies: { "@types/node": "latest" } };
+  assert.equal(nodeTypesStatus(latest, dir, { nodeVersion: "lts/*" }).ok, null);
+});
+
+// La majeure de Volta (22) diffère du défaut du kit (24) : le test prouve qu'elle est lue.
+for (const [run, source, major] of [
+  ["pnpm", ".nvmrc", "24"],
+  ["volta", "volta.node", "22"],
+]) {
+  test(`create (${run}) : @types/node suit ${source}, le sync signale sans modifier`, async () => {
+    const dir = copyFixture("sample");
+    const file = path.join(dir, "package.json");
+    const pkg = JSON.parse(fs.readFileSync(file, "utf8"));
+    pkg.devDependencies = { "@types/node": "^20" };
+    if (run === "volta") pkg.volta = { node: "22.1.0" };
+    fs.writeFileSync(file, JSON.stringify(pkg));
+    const mods = resolveSelection(loadModules(), ["core"]);
+    const options = { dryRun: false, install: false };
+    const created = await applyModules(dir, mods, { run }, { fresh: true, ...options });
+    const { nodeTypes } = created;
+    assert.deepEqual([nodeTypes.source, nodeTypes.nodeMajor, nodeTypes.ok], [source, major, false]);
+    assert.ok(created.commands.some((c) => c.cmd === `pnpm add -D @types/node@^${major}`));
+    // Projet existant : signalé, jamais modifié.
+    const synced = await applyModules(dir, mods, { run }, { fresh: false, ...options });
+    assert.equal(synced.nodeTypes.ok, false);
+    assert.ok(!synced.commands.some((c) => c.cmd.includes("@types/node")));
+  });
+}

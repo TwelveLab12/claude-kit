@@ -12,8 +12,14 @@ description: Vérifie la fraîcheur des standards — dans un projet, l'écart a
 1. Version du kit : lock vs `$KIT/.claude-plugin/plugin.json`.
 2. Dérive : `node "$KIT/scripts/apply.mjs" apply . --from-lock --dry-run` → fichiers gérés modifiés
    à la main (`written`), `conflicts`, `seedDiffers`.
-3. Dépendances : `pnpm outdated`. Distinguer patch/minor (Dependabot s'en charge) et **majeures**.
-4. Rapport court : ce qui est à jour, ce qui dérive, ce qui mérite `/claude-kit:sync` ou une issue.
+3. Types Node : `nodeTypes` du dry-run. `ok: false` = la majeure de `@types/node` ne suit pas celle
+   de Node (`nodeMajor`, lue dans `source`) : proposer `pnpm add -D @types/node@^<nodeMajor>` (avec
+   Volta : `volta run pnpm add …`). `ok: null` = majeure de Node indéterminée (alias comme `lts/*`
+   dans `.nvmrc`) : le dire, sans proposer de version.
+4. Dépendances : `pnpm outdated`. Distinguer patch/minor (Dependabot s'en charge) et **majeures**.
+   Une majeure de `@types/node` plus récente que celle de Node n'est pas un retard : ne pas la
+   proposer (étape 3).
+5. Rapport court : ce qui est à jour, ce qui dérive, ce qui mérite `/claude-kit:sync` ou une issue.
    Ne rien modifier.
 
 ## Dans le repo claude-kit (faire évoluer les standards)
