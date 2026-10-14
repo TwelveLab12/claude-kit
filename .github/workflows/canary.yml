@@ -43,6 +43,14 @@ jobs:
           node scripts/apply.mjs create "$RUNNER_TEMP/canary" --modules all \
             --var owner=TwelveLab12 --var boardNumber=1
 
+      - name: "@types/node à la majeure de Node (.nvmrc)"
+        working-directory: ${{ runner.temp }}/canary
+        run: |
+          node_major=$(grep -oE '[0-9]+' .nvmrc | head -1)
+          types_major=$(node -p "require('./package.json').devDependencies['@types/node'].match(/\\d+/)[0]")
+          echo "Node $node_major, @types/node $types_major"
+          test "$node_major" = "$types_major"
+
       - name: Baseline du projet généré
         working-directory: ${{ runner.temp }}/canary
         env:
