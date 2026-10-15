@@ -46,7 +46,9 @@ La base est écrite à la fin de ce sync : les suivants ne signalent plus que ce
   signalé. `package.json` n'est réécrit que si une clé change.
 - Les plugins du Prettier du projet sont cherchés dans le projet. À la création, Prettier les
   cherchait dans le dossier courant (`prettier-plugin-tailwindcss` introuvable), et la mise en forme
-  échouait sans message.
+  échouait sans message. Sous Node 24, Prettier lui-même, installé en cours de création, n'était
+  pas retrouvé : Node garde en cache une résolution qui a échoué. Un paquet n'est donc cherché
+  qu'une fois installé.
 
 Dans le kit : un test nommé par cas de l'ADR 0008, un faux Prettier pour les tests, et un job
 `upgrade` du canary qui synchronise un projet généré avec la version précédente du kit.

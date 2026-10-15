@@ -476,12 +476,24 @@ function sortKeys(object) {
 // ---------------------------------------------------------------------------------------------
 // Apply
 
+// Node 24 keeps a failed resolution for the whole process: a package missing at the first try
+// (Prettier during `create`, installed after the first files are written) would never be found.
+// So a package is only resolved once a node_modules of the project, or of a parent, has it.
+function isInstalled(target, specifier) {
+  const name = specifier.split("/").slice(0, specifier.startsWith("@") ? 2 : 1).join("/");
+  for (let dir = path.resolve(target); ; dir = path.dirname(dir)) {
+    if (fs.existsSync(path.join(dir, "node_modules", name, "package.json"))) return true;
+    if (dir === path.dirname(dir)) return false;
+  }
+}
+
 async function loadProjectPrettier(target) {
+  if (!isInstalled(target, "prettier")) return null;
   try {
     const require = createRequire(path.join(target, "package.json"));
     // createRequire resolves Prettier's CJS entry, whose API lives on the default export.
     const mod = await import(pathToFileURL(require.resolve("prettier")).href);
-    return { api: mod.default ?? mod, require };
+    return { api: mod.default ?? mod, require, target };
   } catch {
     return null;
   }
@@ -490,18 +502,21 @@ async function loadProjectPrettier(target) {
 // Prettier resolves the plugins named in the config from the current directory, which is not the
 // project during `create` or `apply <dir>`: every format would fail. Resolve them from the project,
 // and keep getFileInfo from reading the config (and its plugins) again.
-function resolvePlugin(require, plugin) {
+function resolvePlugin({ require, target }, plugin) {
+  if (typeof plugin !== "string") return plugin;
+  if (!/^[./]/.test(plugin) && !isInstalled(target, plugin)) return plugin;
   try {
-    return typeof plugin === "string" ? require.resolve(plugin) : plugin;
+    return require.resolve(plugin);
   } catch {
     return plugin;
   }
 }
 
-async function formatWith({ api, require }, file, content) {
+async function formatWith(prettier, file, content) {
+  const { api } = prettier;
   try {
     const options = (await api.resolveConfig(file)) ?? {};
-    const plugins = options.plugins?.map((plugin) => resolvePlugin(require, plugin));
+    const plugins = options.plugins?.map((plugin) => resolvePlugin(prettier, plugin));
     const info = await api.getFileInfo(file, { ignorePath: [], resolveConfig: false, plugins });
     if (!info.inferredParser) return content;
     return await api.format(content, { ...options, ...(plugins && { plugins }), filepath: file });
@@ -966,6 +981,7 @@ export {
   resolveSelection,
   loadModules,
   applyModules,
+  loadProjectPrettier,
   nodeTypesStatus,
 };
 

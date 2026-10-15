@@ -7,6 +7,7 @@ import {
   applyModules,
   deepMerge,
   loadModules,
+  loadProjectPrettier,
   makeRenderer,
   nodeTypesStatus,
   renderCi,
@@ -184,6 +185,16 @@ function installFakePrettier(dir) {
   writeIn(dir, "node_modules/fake-prettier-plugin/index.js", "module.exports = {};\n");
   writeIn(dir, ".prettierrc.json", '{ "plugins": ["fake-prettier-plugin"] }\n');
 }
+
+// Pendant `create`, Prettier est absent au premier essai et installé ensuite. Node 24 garde en cache
+// une résolution qui a échoué : il ne faut pas chercher un paquet avant qu'il soit installé.
+test("Prettier installé en cours de passage : trouvé malgré un premier essai sans lui", async () => {
+  const dir = copyFixture("sample");
+  fs.mkdirSync(path.join(dir, "node_modules/autre"), { recursive: true });
+  assert.equal(await loadProjectPrettier(dir), null);
+  installFakePrettier(dir);
+  assert.ok(await loadProjectPrettier(dir));
+});
 
 test("N1 : un fichier reformaté par le projet n'est pas un écart", async () => {
   const dir = await createProject();
