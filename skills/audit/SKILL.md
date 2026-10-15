@@ -11,7 +11,10 @@ description: Vérifie la fraîcheur des standards — dans un projet, l'écart a
 
 1. Version du kit : lock vs `$KIT/.claude-plugin/plugin.json`.
 2. Dérive : `node "$KIT/scripts/apply.mjs" apply . --from-lock --dry-run` → fichiers gérés modifiés
-   à la main (`written`), `conflicts`, `seedDiffers`.
+   ou supprimés à la main (`drifts`), seeds et clés de `package.json` que le kit a changés alors
+   que le projet les a modifiés (`proposals`, `conflicts`), éléments absents d'un projet sans base
+   (`missing`). `written` = mises à jour du kit en attente d'un sync. Lecture des catégories :
+   `/claude-kit:sync`, étape 3.
 3. Types Node : `nodeTypes` du dry-run. `ok: false` = la majeure de `@types/node` ne suit pas celle
    de Node (`nodeMajor`, lue dans `source`) : proposer `pnpm add -D @types/node@^<nodeMajor>` (avec
    Volta : `volta run pnpm add …`). `ok: null` = majeure de Node indéterminée (alias comme `lts/*`

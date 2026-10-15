@@ -63,9 +63,10 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
   déterministe et testable sans Claude ; les skills s'occupent du dialogue, de ce qui est propre au
   projet (sections Projet/Architecture du `CLAUDE.md`) et des actions GitHub.
 - Chaque module (`modules/<id>/`) fournit :
-  - `managed/` : fichiers possédés par le kit, réécrits à chaque sync ;
-  - `seed/` : fichiers possédés par le projet une fois créés (configs, tests d'exemple). Un sync
-    ne les écrase jamais, il propose un diff ;
+  - `managed/` : fichiers possédés par le kit. Un sync les met à jour tant que le projet n'y
+    touche pas ; une modification du projet est signalée comme un écart, jamais écrasée ;
+  - `seed/` : fichiers possédés par le projet une fois créés (configs, tests d'exemple). Un seed
+    intact suit le kit ; modifié, il n'est jamais écrasé, et un changement du kit est proposé ;
   - `merge/` : JSON fusionné dans l'existant ;
   - `rules.md` : règles Claude, copiées dans `.claude/kit/<id>.md` et importées par `CLAUDE.md`
     dans un bloc `<!-- BEGIN:claude-kit -->` régénéré ;
@@ -78,7 +79,14 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
 - Les fichiers composés (CI, `.prettierrc.json`, lint-staged, bloc `.gitignore`,
   `docs/dependencies.md`) sont générés selon la combinaison de modules.
 - Toute sortie passe par le Prettier du projet : un sync sans changement du kit n'écrit rien.
-- `.claude/kit.lock.json` mémorise version du kit, modules et variables, et sert de base au sync.
+- `.claude/kit.lock.json` mémorise version du kit, modules et variables. Un kit plus ancien que
+  celui du lock refuse de synchroniser.
+- **Sync à trois voies** ([ADR 0008](docs/adr/0008-sync-three-way-base.md)) :
+  `.claude/kit/base.json` garde ce que le kit a écrit au dernier passage. Chaque fichier, bloc et
+  clé de `package.json` est comparé dans trois versions (base, projet, kit) : le sync écrit ce que
+  le projet n'a pas touché, et classe le reste dans le rapport (`drifts`, `proposals`,
+  `conflicts`, `missing`) au lieu de l'écraser. Un reformatage n'est pas une modification, ni la
+  version d'une action GitHub montée par Dependabot.
 - **Versions** : ce qui vient avec Next (next, react, eslint, typescript, tailwind) est laissé à
   `create-next-app@latest`, qui choisit des versions compatibles entre elles. Le reste est installé
   en `@latest`. Rien n'est figé dans le kit.
