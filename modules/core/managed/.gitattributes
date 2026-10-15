@@ -3,3 +3,6 @@
 # (scripts `sh`) casse le parsing des arguments et fait échouer lint-staged silencieusement.
 * text=auto eol=lf
 .husky/* text eol=lf
+# Base du sync de claude-kit (ce que le kit a écrit au dernier passage) : générée, repliée dans le
+# diff des PR.
+.claude/kit/base.json linguist-generated

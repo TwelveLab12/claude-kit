@@ -1,7 +1,8 @@
 # Canary : génère chaque semaine un projet neuf avec TOUS les modules sur les dernières versions
 # (create-next-app@latest, outils @latest), puis lance la chaîne complète. Si un standard de
 # l'écosystème bouge (majeure, option dépréciée, défaut de CLI qui change…), on le sait avant de
-# scaffolder un vrai projet. Tourne aussi sur chaque PR du kit. Un échec planifié est relancé une
+# scaffolder un vrai projet. Un second job synchronise un projet généré avec la version précédente
+# du kit (montée de version). Tourne aussi sur chaque PR du kit. Un échec planifié est relancé une
 # fois, puis signalé par une issue : voir canary-retry.yml.
 name: Canary
 
@@ -66,6 +67,77 @@ jobs:
 
       - name: Sync idempotent
         working-directory: ${{ runner.temp }}/canary
+        run: |
+          node "$GITHUB_WORKSPACE/scripts/apply.mjs" apply . --from-lock --no-install \
+            | sed -n '/claude-kit report/,$p' | tail -n +2 > report.json
+          node -e 'const r=require("./report.json"); if (r.written.length) { console.error("Sync non idempotent:", r.written); process.exit(1); }'
+
+  # Montée de version (ADR 0008) : un projet généré avec la version précédente du kit (le plus haut
+  # tag v* inférieur à la version de plugin.json) est synchronisé avec le code courant, passe la
+  # baseline, puis un second sync n'écrit rien.
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: latest
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - name: Tag précédent
+        id: previous
+        run: |
+          current=$(node -p 'require("./.claude-plugin/plugin.json").version')
+          for tag in $(git tag --list 'v*' --sort=-v:refname); do
+            lowest=$(printf '%s\n%s\n' "${tag#v}" "$current" | sort -V | head -n 1)
+            if [ "${tag#v}" != "$current" ] && [ "$lowest" = "${tag#v}" ]; then
+              echo "Kit $current, projet généré avec $tag"
+              echo "tag=$tag" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "Aucun tag inférieur à $current"
+          exit 1
+
+      - name: Scaffold avec le tag précédent (tous les modules)
+        env:
+          TAG: ${{ steps.previous.outputs.tag }}
+        run: |
+          git config --global user.name "claude-kit canary"
+          git config --global user.email "canary@users.noreply.github.com"
+          git config --global init.defaultBranch main
+          git worktree add --detach "$RUNNER_TEMP/kit-previous" "$TAG"
+          node "$RUNNER_TEMP/kit-previous/scripts/apply.mjs" create "$RUNNER_TEMP/upgrade" --modules all \
+            --var owner=TwelveLab12 --var boardNumber=1
+
+      - name: Sync avec la version courante
+        working-directory: ${{ runner.temp }}/upgrade
+        run: node "$GITHUB_WORKSPACE/scripts/apply.mjs" apply . --from-lock
+
+      - name: Baseline du projet synchronisé
+        working-directory: ${{ runner.temp }}/upgrade
+        env:
+          CI: "true"
+        run: |
+          pnpm typecheck
+          pnpm format:check
+          pnpm lint:ci
+          pnpm test
+          pnpm build
+          pnpm exec playwright install --with-deps chromium
+          pnpm test:e2e
+
+      - name: Second sync idempotent
+        working-directory: ${{ runner.temp }}/upgrade
         run: |
           node "$GITHUB_WORKSPACE/scripts/apply.mjs" apply . --from-lock --no-install \
             | sed -n '/claude-kit report/,$p' | tail -n +2 > report.json

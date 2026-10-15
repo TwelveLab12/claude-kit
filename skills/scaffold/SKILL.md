@@ -66,10 +66,15 @@ script, inutile de les demander.
   `apply . --from-lock --var boardNumber=<n> --no-install` pour l'inscrire dans les règles.
 - Création : `node "$KIT/scripts/apply.mjs" create <dossier> --modules a,b,c --var … [--react-compiler]`.
 - Adoption : **toujours d'abord** `apply <dossier> --modules … --var … --dry-run`, puis :
-  - présenter `written` (fichiers gérés créés ou remplacés), `conflicts` (scripts/champs
-    `package.json` qui diffèrent : l'existant est conservé), `seedDiffers` (fichiers du projet qui
-    diffèrent du modèle : comparer avec le fichier `proposal` indiqué et proposer les morceaux
-    utiles, sans écraser) ;
+  - présenter le rapport (`bootstrap: "A2"`). Un fichier absent est créé, un fichier existant
+    n'est jamais écrasé :
+    - `written` : fichiers créés, clés de `package.json` ajoutées ;
+    - `drifts` : fichiers gérés par le kit que le projet a déjà, dans une autre version. Comparer
+      au fichier `proposal` et décider avec l'utilisateur : reprendre la version du kit, sinon
+      l'écart reste signalé à chaque sync ;
+    - `proposals` : fichiers du projet qui diffèrent du modèle. Comparer avec `proposal` et
+      proposer les morceaux utiles, sans écraser ;
+    - `conflicts` : scripts et champs de `package.json` qui diffèrent. L'existant est conservé ;
   - si le projet suit un workflow issue/branche (CLAUDE.md, board), créer d'abord l'issue et la
     branche avec `/claude-kit:start-task`, jamais de changement directement sur `main` ;
   - puis relancer sans `--dry-run`.
@@ -124,4 +129,4 @@ pas maquiller un échec : le signaler avec la sortie.
 ## 7. Compte rendu
 
 En quelques lignes : modules installés, ce qui a été vérifié (et le résultat), actions GitHub
-faites ou restantes, fichiers `seedDiffers`/`conflicts` laissés à l'arbitrage de l'utilisateur.
+faites ou restantes, entrées `drifts`/`proposals`/`conflicts` laissées à l'arbitrage de l'utilisateur.

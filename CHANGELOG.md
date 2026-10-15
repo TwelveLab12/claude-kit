@@ -2,6 +2,57 @@
 
 Chaque version est lue par `/claude-kit:sync` pour expliquer à un projet ce qui change.
 
+## 0.6.0 — 2026-10-15
+
+**Premier sync après cette version : une reprise à la main, une seule fois.** Le projet n'a pas
+encore de base (`.claude/kit/base.json`), et le kit ne sait donc pas ce qu'il y a écrit. Ce sync
+n'écrase rien et ne crée rien ; le rapport l'indique par `bootstrap: "A1"`.
+
+- Les fichiers managed que le kit a changés depuis la version du projet sont signalés dans
+  `drifts` (cas F2), avec la version du kit (`proposal`). Ils sont à reprendre une fois à la main.
+  Pour un projet en 0.3.0 : `.github/workflows/ci.yml`, `.github/dependabot.yml`,
+  `.gitattributes` et les règles `core`, `dependabot` et `github-ci` (`.claude/kit/*.md`).
+- Les éléments absents du projet (fichiers, scripts, bloc) sont signalés dans `missing`, pas
+  recréés : le kit ne sait pas s'ils sont nouveaux ou si le projet les a supprimés. Les tests
+  d'exemple supprimés par un projet ne reviennent plus.
+- Les seeds et les scripts qui diffèrent du kit sont proposés (`proposals`) ou signalés
+  (`conflicts`) une dernière fois.
+
+La base est écrite à la fin de ce sync : les suivants ne signalent plus que ce qui change.
+
+### Sync à trois voies (#17, ADR 0008)
+
+- `.claude/kit/base.json` garde ce que le kit a écrit au dernier passage, après le Prettier du
+  projet. Elle est versionnée avec le projet, et `.gitattributes` (module `core`) la marque
+  `linguist-generated` : GitHub la replie dans le diff des PR.
+- Chaque fichier, bloc (`.gitignore`, `CLAUDE.md`) et clé de `package.json` (`type`, `scripts.*`,
+  `lint-staged`) est comparé dans trois versions : base, projet et kit. Le sync n'écrit que ce que
+  le projet n'a pas touché :
+  - un fichier managed modifié par le projet n'est plus réécrit. Il est signalé à chaque sync
+    (`drifts`) jusqu'à ce qu'on tranche : issue sur le kit, ou script propre au projet ;
+  - un seed intact suit le kit. Modifié, il n'est proposé que si le kit l'a changé aussi ;
+  - un élément supprimé par le projet n'est pas recréé.
+- Un reformatage n'est pas une modification. La version d'une action GitHub montée par Dependabot
+  n'est ni un écart ni redescendue : le kit écrit la plus haute des deux.
+- Rapport : `seedDiffers` est remplacé par `drifts`, `proposals` (seeds), `conflicts` (clés de
+  `package.json`, avec `base`, `current` et `kit`) et `missing`. Chaque entrée porte son cas
+  (F2 à F6, A1). Les propositions sont rangées en `kit/<fichier>` et `base/<fichier>` :
+  `/claude-kit:sync` montre ce que le kit change sans deviner.
+- Un kit plus ancien que celui du lock refuse de synchroniser, dry-run compris : mettre à jour le
+  plugin.
+- Le lock perd `updatedAt` et n'est réécrit que si son contenu change. Il inscrit `nodeVersion`
+  s'il manque : un `.nvmrc` intact ne suit pas un nouveau défaut du kit.
+- Adoption d'un projet sans lock : un fichier que le projet a déjà n'est plus écrasé, il est
+  signalé. `package.json` n'est réécrit que si une clé change.
+- Les plugins du Prettier du projet sont cherchés dans le projet. À la création, Prettier les
+  cherchait dans le dossier courant (`prettier-plugin-tailwindcss` introuvable), et la mise en forme
+  échouait sans message. Sous Node 24, Prettier lui-même, installé en cours de création, n'était
+  pas retrouvé : Node garde en cache une résolution qui a échoué. Un paquet n'est donc cherché
+  qu'une fois installé.
+
+Dans le kit : un test nommé par cas de l'ADR 0008, un faux Prettier pour les tests, et un job
+`upgrade` du canary qui synchronise un projet généré avec la version précédente du kit.
+
 ## 0.5.0 — 2026-10-14
 
 Le sync réécrit `.github/dependabot.yml` et les règles `core` et `dependabot`. Aucune action si

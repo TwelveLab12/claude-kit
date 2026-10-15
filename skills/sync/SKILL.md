@@ -12,29 +12,53 @@ argument-hint: "[+module] [-module]"
    adoption). Arbre git propre. Si le projet suit le workflow GitHub du kit, créer l'issue (`chore`)
    et la branche avec `/claude-kit:start-task` **avant** de modifier quoi que ce soit.
 2. **Ce qui change dans le kit** : comparer `kitVersion` du lock à `$KIT/.claude-plugin/plugin.json`
-   et résumer les entrées concernées de `$KIT/CHANGELOG.md`.
+   et résumer les entrées concernées de `$KIT/CHANGELOG.md`. Un kit plus ancien que le lock est
+   refusé par le script : faire mettre à jour le plugin, ne pas contourner.
 3. **Dry-run** :
    `node "$KIT/scripts/apply.mjs" apply . --from-lock [--add a,b] [--remove c] --dry-run`
-   (`+x` en argument → `--add x`, `-x` → `--remove x`). Présenter :
-   - `written` : fichiers gérés par le kit qui vont changer (`managed/`, `.claude/kit/*.md`, CI,
-     configs Prettier, bloc `.gitignore`, bloc d'imports de `CLAUDE.md`) ;
+   (`+x` en argument → `--add x`, `-x` → `--remove x`).
+
+   Le script compare chaque fichier, bloc et clé de `package.json` à la base
+   (`.claude/kit/base.json`, ce que le kit a écrit au dernier passage) et classe le résultat. Ne
+   rien deviner au-delà de ces catégories. Chaque entrée porte son cas (ADR 0008 du kit). Dans le
+   dossier de propositions, `proposal` est la version du kit et `base` celle du dernier passage
+   (absente sans base). `diff <base> <fichier>` montre ce que le projet a changé, `diff <base>
+   <proposal>` ce que le kit change. Présenter :
+   - `bootstrap: "A1"` : premier sync d'un projet créé avant la base. Rien n'est écrasé ni créé ;
+     le dire, et annoncer que les syncs suivants ne signaleront plus que ce qui change ;
+   - `written` : ce que le kit met à jour parce que le projet n'y a pas touché (élément nouveau,
+     changement du kit), plus la base et le lock ;
+   - `drifts` : fichiers managed ou blocs (`block`) que le projet a modifiés (F4), supprimés (F6),
+     modifiés comme le kit (F5), ou qui diffèrent sans base (F2). Rien n'est écrasé, et l'écart est
+     signalé à chaque sync tant qu'il existe. Le trancher avec l'utilisateur :
+     - défaut du kit → issue sur `TwelveLab12/claude-kit` (« Retours des projets ») ;
+     - besoin propre au projet → un script de `package.json` ou un fichier propre au projet, puis
+       reprendre la version du kit ;
+     - changement du kit à reprendre (F2, F5) → copier `proposal` ;
+   - `proposals` : seeds (fichiers du projet) que le kit a changés alors que le projet les a
+     modifiés (F5), ou qui diffèrent sans base (F2). Proposer seulement les changements de
+     `diff <base> <proposal>`, appliqués au fichier du projet. Sans base (F2), comparer au fichier,
+     ne proposer que ce qui vient manifestement du kit, et dire que c'est une estimation ;
+   - `conflicts` : clés de `package.json` (`scripts.*`, `type`, `lint-staged`) modifiées des deux
+     côtés (F5, avec `base`, `current` et `kit`) ou qui diffèrent sans base (F2). La valeur du
+     projet est conservée : proposer l'alignement seulement si le changement du kit le justifie.
+     `uiBase` : la bibliothèque UI installée n'est pas celle du lock ;
+   - `missing` (A1 seulement) : éléments absents du projet, ajoutés par le kit ou supprimés par le
+     projet, ce que le script ne peut pas savoir. Demander pour chacun : le créer depuis `proposal`
+     (`kit` pour une clé) ou le laisser absent. Un élément laissé absent est ensuite traité comme
+     supprimé (F6) ;
    - `installed` : dépendances manquantes qui seront ajoutées ;
-   - `conflicts` : champs `package.json` qui diffèrent du kit (l'existant est conservé : proposer
-     l'alignement seulement s'il est justifié) ;
    - `nodeTypes` : si `ok` vaut `false`, `@types/node` n'est pas à la majeure de Node (`nodeMajor`,
      lue dans `source`). Le sync ne le modifie pas : proposer
      `pnpm add -D @types/node@^<nodeMajor>` (avec Volta : `volta run pnpm add …`). Si `ok` vaut
      `null`, la majeure de Node est indéterminée (alias comme `lts/*` dans `.nvmrc`) : le dire, sans
-     proposer de version ;
-   - `seedDiffers` : fichiers possédés par le projet (tsconfig, eslint/vitest/playwright config…)
-     qui diffèrent du modèle actuel. Comparer au fichier `proposal` et proposer **uniquement** les
-     changements qui viennent du kit (nouvelle option, correctif), pas d'écraser les
-     personnalisations du projet.
-4. **Appliquer** après accord : même commande sans `--dry-run`, puis intégrer à la main les
-   morceaux de `seedDiffers` retenus.
+     proposer de version.
+4. **Appliquer** après accord : même commande sans `--dry-run`, puis reprendre à la main ce qui a
+   été retenu dans `drifts`, `proposals`, `conflicts` et `missing`.
 5. **Vérifier** : baseline (`.claude/kit/core.md`) + `format:check` (+ `test:e2e` si Playwright).
-6. **Commits** : un commit pour les fichiers gérés (`chore: sync claude-kit <ancienne> → <nouvelle>`),
-   un commit séparé par adaptation de fichier seed, puis `/claude-kit:ship-task`.
+6. **Commits** : un commit pour ce que le sync a écrit, base et lock compris
+   (`chore: sync claude-kit <ancienne> → <nouvelle>`), un commit séparé par reprise à la main, puis
+   `/claude-kit:ship-task`.
 
 Ne jamais éditer un fichier géré dans le projet pour « corriger » le kit : si une règle ou une
 config du kit est fausse, le noter pour une issue sur `TwelveLab12/claude-kit`.
