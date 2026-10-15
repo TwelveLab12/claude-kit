@@ -8,17 +8,46 @@ l'ensemble tient toujours sur les dernières versions.
 
 ## Installation (une fois par machine)
 
-Dans Claude Code :
+Dans un terminal :
 
-```text
-/plugin marketplace add TwelveLab12/claude-kit
-/plugin install claude-kit@twelvelab
+```bash
+claude plugin marketplace add TwelveLab12/claude-kit
+claude plugin install claude-kit@twelvelab
 ```
 
-En local, pour développer le kit : `/plugin marketplace add <chemin absolu du clone>` (sous WSL,
-par exemple `/home/<utilisateur>/Projects/claude-kit`).
+Sous Windows avec WSL, ces commandes se lancent dans un terminal WSL. L'app de bureau ne gère pas
+encore les plugins dans ses sessions WSL, mais ces sessions chargent le plugin installé dans la
+distribution. Le kit ne s'ajoute pas comme plugin du compte claude.ai (« Personnalisation » de
+l'app) : il serait chargé en double.
+
+En local, pour développer le kit : `claude plugin marketplace add <chemin absolu du clone>` (sous
+WSL, par exemple `/home/<utilisateur>/Projects/claude-kit`).
 Les projets équipés du module `claude-settings` déclarent aussi la marketplace et le plugin dans
 leur `.claude/settings.json` : un clone frais propose l'installation automatiquement.
+
+## Mettre à jour le plugin
+
+Une nouvelle version (tag `v<version>`, voir le [CHANGELOG](CHANGELOG.md)) n'est pas installée
+automatiquement : la mise à jour automatique est désactivée par défaut pour une marketplace tierce.
+
+```bash
+claude plugin marketplace update twelvelab
+claude plugin update claude-kit@twelvelab
+```
+
+- La première commande rafraîchit le catalogue de la marketplace, pour toute la machine.
+- La seconde met à jour l'installation utilisateur, qui sert à tous les projets.
+- Un projet qui a sa propre installation (portée `project` dans `claude plugin list`) se met à jour
+  depuis son dossier, avec `claude plugin update claude-kit@twelvelab --scope project`. Avant
+  Claude Code 2.1.281, la commande sans `--scope` ne met à jour que l'installation utilisateur.
+- `claude plugin list`, lancé depuis le projet, doit afficher la dernière version pour chaque
+  entrée `claude-kit@twelvelab`. Une session déjà ouverte garde l'ancienne version jusqu'à ce
+  qu'on en ouvre une nouvelle.
+- Le plugin se met à jour avant tout `/claude-kit:sync`. Un plugin antérieur à 0.6.0 ne refuse pas
+  un kit plus ancien que le projet, et il écrase ce que le projet a modifié.
+- La mise à jour automatique s'active dans une session `claude` lancée en terminal : `/plugin`,
+  onglet Marketplaces, `twelvelab`, *Enable auto-update*. Un sync reste toujours une action
+  explicite.
 
 ## Utilisation
 
