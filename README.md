@@ -20,8 +20,8 @@ encore les plugins dans ses sessions WSL, mais ces sessions chargent le plugin i
 distribution. Le kit ne s'ajoute pas comme plugin du compte claude.ai (« Personnalisation » de
 l'app) : il serait chargé en double.
 
-En local, pour développer le kit : `/plugin marketplace add <chemin absolu du clone>` (sous WSL,
-par exemple `/home/<utilisateur>/Projects/claude-kit`).
+En local, pour développer le kit : `claude plugin marketplace add <chemin absolu du clone>` (sous
+WSL, par exemple `/home/<utilisateur>/Projects/claude-kit`).
 Les projets équipés du module `claude-settings` déclarent aussi la marketplace et le plugin dans
 leur `.claude/settings.json` : un clone frais propose l'installation automatiquement.
 
