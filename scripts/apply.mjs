@@ -11,11 +11,15 @@
 //   node apply.mjs apply  <dir> --from-lock [--add m] [--remove m] [--dry-run] [--no-install]
 //
 // Every file a module ships is one of:
-//   managed/  owned by the kit: always (re)written, never edit it in the project.
-//   seed/     owned by the project once created: written on `create` or when missing; otherwise
-//             only compared, and a rendered proposal is written to a temp dir for review.
+//   managed/  owned by the kit: a project change is reported, never overwritten.
+//   seed/     owned by the project once created: follows the kit while the project leaves it
+//             intact; otherwise a rendered proposal is written to a temp dir for review.
 //   merge/    JSON deep-merged into the project's file (arrays are unioned).
 //   rules.md  Claude rules, written to .claude/kit/<module>.md and imported from CLAUDE.md.
+//
+// A sync compares three versions of each file, block and package.json key (ADR 0008): the base
+// (what the kit rendered last time, kept in .claude/kit/base.json), the project, and the kit's
+// current render. It only writes what the project left untouched.
 
 import { execSync } from "node:child_process";
 import fs from "node:fs";
@@ -23,6 +27,7 @@ import os from "node:os";
 import path from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { compareVersions } from "./check-release.mjs";
 
 const KIT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const MODULES_DIR = path.join(KIT_ROOT, "modules");
@@ -30,8 +35,10 @@ const KIT_VERSION = readJson(path.join(KIT_ROOT, ".claude-plugin", "plugin.json"
 const MANIFEST = readJson(path.join(MODULES_DIR, "manifest.json"));
 const DEP_DOCS = readJson(path.join(MODULES_DIR, "dependencies.json"));
 const LOCK_PATH = ".claude/kit.lock.json";
+const BASE_PATH = ".claude/kit/base.json";
 const CLAUDE_BLOCK = ["<!-- BEGIN:claude-kit -->", "<!-- END:claude-kit -->"];
 const GITIGNORE_BLOCK = ["# >>> claude-kit", "# <<< claude-kit"];
+const BLOCKS = { ".gitignore": GITIGNORE_BLOCK, "CLAUDE.md": CLAUDE_BLOCK };
 
 // ---------------------------------------------------------------------------------------------
 // Helpers
@@ -393,6 +400,79 @@ function claudeMdSkeleton(vars) {
   ].join("\n");
 }
 
+// Body of a kit block in a file, without the blank lines Prettier puts around it in Markdown;
+// undefined when the file or the block is absent.
+function blockBody(content, [begin, end]) {
+  const start = content?.indexOf(begin) ?? -1;
+  const stop = content?.indexOf(end) ?? -1;
+  if (start === -1 || stop < start) return undefined;
+  return content.slice(start + begin.length, stop).replace(/^\n+/, "").replace(/\n+$/, "");
+}
+
+// ---------------------------------------------------------------------------------------------
+// Three-way sync (ADR 0008)
+
+// Case of one element from its three versions, already normalized (N1); undefined = absent. F0 is
+// an exact comparison, so that an action version raised by the kit is still written (F3); the
+// other cases compare through `mask` (N2).
+function syncCase({ base, project, kit }, mask = (text) => text) {
+  if (project !== undefined && project === kit) return "F0";
+  if (base === undefined) return project === undefined ? "F1" : "F2";
+  if (project === undefined) return "F6";
+  if (mask(project) === mask(base)) return "F3";
+  return mask(kit) === mask(base) ? "F4" : "F5";
+}
+
+// What a sync does in each case, by kind of element (blocks follow managed files). F0, and a case
+// absent from a row, leave the element alone.
+const ACTIONS = {
+  managed: { F1: "write", F2: "drift", F3: "write", F4: "drift", F5: "drift", F6: "drift" },
+  seed: { F1: "write", F2: "propose", F3: "write", F5: "propose" },
+  key: { F1: "write", F2: "conflict", F3: "write", F5: "conflict" },
+};
+
+// N2: in a managed workflow, the version of an action (`uses: owner/repo@v7`) is not a
+// modification, and the kit writes the higher of its own and the project's. A ref that is not a
+// version (SHA, branch) is left as is, so it counts as a modification.
+const USES = /^([ \t]*(?:-[ \t]+)?uses:[ \t]*["']?)([^@\s"']+)@([^\s"'#]+)/gm;
+const isWorkflow = (rel) => rel.startsWith(".github/workflows/");
+const refVersion = (ref) => /^v?(\d+(?:\.\d+){0,2})$/.exec(ref)?.[1].split(".").map(Number);
+
+function compareRefs(a, b) {
+  for (let i = 0; i < 3; i++) if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) - (b[i] ?? 0);
+  return 0;
+}
+
+function maskRefs(text) {
+  return text.replace(USES, (line, head, action, ref) =>
+    refVersion(ref) ? `${head}${action}@*` : line,
+  );
+}
+
+function keepHigherRefs(kit, project) {
+  const highest = new Map();
+  for (const [, , action, ref] of project.matchAll(USES)) {
+    const version = refVersion(ref);
+    const best = highest.get(action);
+    if (version && (!best || compareRefs(version, best.version) > 0)) {
+      highest.set(action, { ref, version });
+    }
+  }
+  return kit.replace(USES, (line, head, action, ref) => {
+    const own = refVersion(ref);
+    const theirs = highest.get(action);
+    return own && theirs && compareRefs(theirs.version, own) > 0
+      ? `${head}${action}@${theirs.ref}`
+      : line;
+  });
+}
+
+const asText = (value) => (value === undefined ? undefined : JSON.stringify(value));
+
+function sortKeys(object) {
+  return Object.fromEntries(Object.keys(object).sort().map((key) => [key, object[key]]));
+}
+
 // ---------------------------------------------------------------------------------------------
 // Apply
 
@@ -424,15 +504,33 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
   if (!fs.existsSync(pkgPath)) throw new Error(`Pas de package.json dans ${target}`);
   let pkg = readJson(pkgPath);
 
+  // V1: never sync with a kit older than the one that last wrote the project, dry-run included.
+  const lockFile = path.join(target, LOCK_PATH);
+  const previousLock = fs.existsSync(lockFile) ? readJson(lockFile) : null;
+  if (previousLock && compareVersions(KIT_VERSION, previousLock.kitVersion) < 0) {
+    throw new Error(
+      `Le kit installé (${KIT_VERSION}) est plus ancien que celui du projet ` +
+        `(${previousLock.kitVersion}, ${LOCK_PATH}) : mettre à jour le plugin claude-kit, puis relancer.`,
+    );
+  }
+  // The base: what the kit rendered at the previous create or apply. Without it, a project with a
+  // lock predates the base (A1: nothing absent is created); without a lock, it is being adopted (A2).
+  const basePath = path.join(target, BASE_PATH);
+  const base = fresh || !fs.existsSync(basePath) ? null : readJson(basePath);
+  const bootstrap = fresh || base ? undefined : previousLock ? "A1" : "A2";
+
   const report = {
     kitVersion: KIT_VERSION,
     target,
     mode: fresh ? "create" : dryRun ? "dry-run" : "apply",
+    ...(bootstrap && { bootstrap }),
     modules: [...selected],
     written: [],
     unchanged: [],
-    seedDiffers: [],
+    drifts: [],
+    proposals: [],
     conflicts: [],
+    missing: [],
     installed: [],
     commands: [],
     checks: [],
@@ -468,34 +566,84 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
   }
   const render = makeRenderer({ vars, selected, report });
   const renderIf = (key) => render(`{{#if ${key}}}1{{/if}}`) === "1";
+  // Copies for review: kit/<file> is what the kit would write, base/<file> what it wrote last time.
   const proposalsDir = path.join(os.tmpdir(), `claude-kit-proposals-${Date.now()}`);
+  const keep = (side, rel, content) => {
+    const file = path.join(proposalsDir, side, rel);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, content);
+    return file;
+  };
 
-  // Writes are staged, then flushed through the project's own Prettier (when installed) so that
-  // kit output matches `format:check` and a re-run with nothing new reports everything unchanged.
+  // Writes are staged, then flushed through the project's own Prettier (when installed): kit output
+  // matches `format:check`, and a reformatting is never a modification (N1).
+  let prettier = null;
+  const normalize = async (rel, text) =>
+    text === undefined || !prettier ? text : formatWith(prettier, path.join(target, rel), text);
+  const nextBase = { files: {}, blocks: {}, packageJson: {}, merge: {} };
   const staged = [];
+  // kind: managed | seed (compared to the base), block, fresh or direct (written as computed).
   const write = (relPath, content, kind = "managed") => {
     staged.push({ rel: relPath.split(path.sep).join("/"), content, kind });
   };
   const flush = async () => {
-    const prettier = await loadProjectPrettier(target);
-    for (const { rel, content, kind } of staged.splice(0)) {
-      commit(rel, prettier ? await formatWith(prettier, path.join(target, rel), content) : content, kind);
+    prettier ??= await loadProjectPrettier(target);
+    for (const item of staged.splice(0)) {
+      if (item.kind === "managed" || item.kind === "seed") await syncFile(item);
+      else if (item.kind === "block") await syncBlock(item);
+      else commit(item.rel, await normalize(item.rel, item.content));
     }
   };
-  const commit = (rel, content, kind) => {
+  const commit = (rel, content) => {
     const dest = path.join(target, rel);
-    const current = readIfExists(dest);
-    if (current === content) return report.unchanged.push(rel);
-    if (kind === "seed" && current !== null && !fresh) {
-      const proposal = path.join(proposalsDir, rel);
-      fs.mkdirSync(path.dirname(proposal), { recursive: true });
-      fs.writeFileSync(proposal, content);
-      return report.seedDiffers.push({ file: rel, proposal });
-    }
+    if (readIfExists(dest) === content) return report.unchanged.push(rel);
     report.written.push(rel);
     if (dryRun) return;
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.writeFileSync(dest, content);
+  };
+  // Acts on the case of a file or block: write it, report a drift (managed) or a proposal (seed),
+  // or leave it. `kit` and `base` are whole files.
+  const settle = (kind, id, { rel, kit, base: recorded, block }) => {
+    if (id === "F0") return report.unchanged.push(rel);
+    const action = ACTIONS[kind][id];
+    if (!action) return;
+    const entry = { file: rel, ...(block && { block }), case: id };
+    if (action === "write" && bootstrap === "A1") {
+      return report.missing.push({ ...entry, case: "A1", proposal: keep("kit", rel, kit) });
+    }
+    if (action === "write") return commit(rel, kit);
+    entry.proposal = keep("kit", rel, kit);
+    if (recorded !== undefined) entry.base = keep("base", rel, recorded);
+    (action === "drift" ? report.drifts : report.proposals).push(entry);
+  };
+  const syncFile = async ({ rel, content, kind }) => {
+    const current = readIfExists(path.join(target, rel)) ?? undefined;
+    const workflow = kind === "managed" && isWorkflow(rel);
+    let kit = await normalize(rel, content);
+    // The base keeps the kit's own action versions: a bump by the project (Dependabot) leaves it as is.
+    nextBase.files[rel] = kit;
+    if (workflow && current !== undefined) kit = keepHigherRefs(kit, current);
+    if (fresh) return commit(rel, kit);
+    const recorded = await normalize(rel, base?.files?.[rel]);
+    const project = await normalize(rel, current);
+    const id = syncCase({ base: recorded, project, kit }, workflow ? maskRefs : undefined);
+    settle(kind, id, { rel, kit, base: recorded });
+  };
+  // A block is compared on its body, each version normalized inside the project's file.
+  const syncBlock = async ({ rel, content: body, host }) => {
+    const markers = BLOCKS[rel];
+    const embed = async (text) =>
+      text === undefined ? undefined : normalize(rel, replaceBlock(host, markers, text));
+    const kit = await embed(body);
+    nextBase.blocks[rel] = { body: blockBody(kit, markers), host };
+    if (fresh) return commit(rel, kit);
+    const recorded = await embed(base?.blocks?.[rel]);
+    const current = readIfExists(path.join(target, rel)) ?? undefined;
+    const project = await embed(blockBody(current, markers));
+    const versions = [recorded, project, kit].map((file) => blockBody(file, markers));
+    const id = syncCase({ base: versions[0], project: versions[1], kit: versions[2] });
+    settle("managed", id, { rel, kit, base: recorded, block: "claude-kit" });
   };
 
   // 1. Module files.
@@ -511,16 +659,22 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
       if (condition && !condition.split("+").every((id) => selected.has(id))) continue;
       const dir = path.join(mod.dir, entry);
       for (const rel of walk(dir)) {
-        const content = render(fs.readFileSync(path.join(dir, rel), "utf8"));
-        write(targetPath(rel), content, kind === "managed" ? "managed" : "seed");
+        write(targetPath(rel), render(fs.readFileSync(path.join(dir, rel), "utf8")), kind);
       }
     }
+    // merge/ keeps its union merge (M1); the base records the kit's contribution. A1 creates none.
     const mergeDir = path.join(mod.dir, "merge");
     for (const rel of walk(mergeDir)) {
       const incoming = JSON.parse(render(fs.readFileSync(path.join(mergeDir, rel), "utf8")));
+      const recorded = nextBase.merge[rel];
+      nextBase.merge[rel] = recorded ? deepMerge(recorded, incoming, true) : incoming;
       const current = readIfExists(path.join(target, rel));
+      if (current === null && bootstrap === "A1") {
+        report.missing.push({ file: rel, case: "A1", proposal: keep("kit", rel, toJson(incoming)) });
+        continue;
+      }
       const merged = current ? deepMerge(JSON.parse(current), incoming, fresh) : incoming;
-      write(rel, toJson(merged));
+      write(rel, toJson(merged), "direct");
     }
     const rules = path.join(mod.dir, "rules.md");
     if (fs.existsSync(rules)) {
@@ -545,44 +699,50 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
   }
   // Volta projects pin Node in package.json (post command of `core`): no second source in .nvmrc.
   if (!vars.volta) write(".nvmrc", `${vars.nodeVersion}\n`, "seed");
+  // Blocks are embedded in their file as it stands (`host`), the rest of the file being the project's.
   const gitignoreLines = mods.flatMap((m) => m.gitignore ?? []);
   if (gitignoreLines.length) {
-    const current = readIfExists(path.join(target, ".gitignore")) ?? "";
-    write(".gitignore", replaceBlock(current, GITIGNORE_BLOCK, gitignoreLines.join("\n")));
+    const host = readIfExists(path.join(target, ".gitignore")) ?? "";
+    staged.push({ rel: ".gitignore", content: gitignoreLines.join("\n"), kind: "block", host });
   }
   const claudeMd = readIfExists(path.join(target, "CLAUDE.md"));
-  const base = claudeMd && claudeMd.trim() !== "@AGENTS.md" ? claudeMd : claudeMdSkeleton(vars);
+  const host = claudeMd && claudeMd.trim() !== "@AGENTS.md" ? claudeMd : claudeMdSkeleton(vars);
   const imports = mods
     .filter((m) => fs.existsSync(path.join(m.dir, "rules.md")))
     .map((m) => `@.claude/kit/${m.id}.md`);
-  write("CLAUDE.md", replaceBlock(base, CLAUDE_BLOCK, imports.join("\n")));
+  staged.push({ rel: "CLAUDE.md", content: imports.join("\n"), kind: "block", host });
 
-  // 3. package.json: scripts + lint-staged (existing values win outside `create`).
-  const setField = (field, key, value) => {
-    pkg[field] ??= {};
-    const current = pkg[field][key];
-    if (current === undefined || fresh) pkg[field][key] = value;
-    else if (JSON.stringify(current) !== JSON.stringify(value)) {
-      report.conflicts.push({ field: `${field}.${key}`, current, kit: value });
+  // 3. package.json: the keys the kit provides (type, scripts, lint-staged), each one compared to
+  //    the base like a file. Written only when a key changes.
+  let pkgChanged = false;
+  const syncKey = (keyPath, value) => {
+    const field = keyPath.join(".");
+    const [head, sub] = keyPath;
+    const current = sub === undefined ? pkg[head] : pkg[head]?.[sub];
+    const set = () => {
+      if (sub === undefined) pkg[head] = value;
+      else (pkg[head] ??= {})[sub] = value;
+      pkgChanged = true;
+    };
+    nextBase.packageJson[field] = value;
+    if (fresh) return set();
+    const recorded = base?.packageJson?.[field];
+    const id = syncCase({ base: asText(recorded), project: asText(current), kit: asText(value) });
+    const action = ACTIONS.key[id];
+    if (action === "write" && bootstrap === "A1") {
+      report.missing.push({ field, case: "A1", kit: value });
+    } else if (action === "write") set();
+    else if (action === "conflict") {
+      const withBase = recorded === undefined ? {} : { base: recorded };
+      report.conflicts.push({ field, case: id, ...withBase, current, kit: value });
     }
   };
   for (const mod of mods) {
-    for (const [key, value] of Object.entries(mod.packageJson ?? {})) {
-      if (pkg[key] === undefined || fresh) pkg[key] = value;
-      else if (JSON.stringify(pkg[key]) !== JSON.stringify(value)) {
-        report.conflicts.push({ field: key, current: pkg[key], kit: value });
-      }
-    }
-    for (const [key, value] of Object.entries(mod.scripts ?? {})) setField("scripts", key, value);
+    for (const [key, value] of Object.entries(mod.packageJson ?? {})) syncKey([key], value);
+    for (const [key, value] of Object.entries(mod.scripts ?? {})) syncKey(["scripts", key], value);
   }
-  if (selected.has("husky")) {
-    const lintStaged = renderLintStaged(selected);
-    if (fresh || !pkg["lint-staged"]) pkg["lint-staged"] = lintStaged;
-    else if (JSON.stringify(pkg["lint-staged"]) !== JSON.stringify(lintStaged)) {
-      report.conflicts.push({ field: "lint-staged", current: pkg["lint-staged"], kit: lintStaged });
-    }
-  }
-  write("package.json", toJson(pkg));
+  if (selected.has("husky")) syncKey(["lint-staged"], renderLintStaged(selected));
+  if (pkgChanged) write("package.json", toJson(pkg), "direct");
   await flush();
 
   // 4. Dependencies: only what is missing, at @latest (versions that come with Next are left to
@@ -673,15 +833,30 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
     report.checks.push({ module: mod.id, ok, expect });
   }
 
-  // 7. Lock file.
-  const lock = {
-    kitVersion: KIT_VERSION,
-    modules: [...selected],
-    // The UI library is recorded once chosen or detected, so later syncs never re-decide it.
-    vars: vars.uiBase ? { ...baseVars, uiBase: vars.uiBase } : baseVars,
-    updatedAt: new Date().toISOString().slice(0, 10),
-  };
-  write(LOCK_PATH, toJson(lock));
+  await flush();
+
+  // 7. Base and lock, written only when their content changes (V3), never in dry-run. The base
+  //    holds the kit's render after the project's Prettier, which `create` only installs after the
+  //    first writes: normalize again now.
+  prettier ??= await loadProjectPrettier(target);
+  const files = {};
+  for (const rel of Object.keys(nextBase.files).sort()) {
+    files[rel] = await normalize(rel, nextBase.files[rel]);
+  }
+  const blocks = {};
+  for (const rel of Object.keys(nextBase.blocks).sort()) {
+    const { body, host } = nextBase.blocks[rel];
+    const file = await normalize(rel, replaceBlock(host, BLOCKS[rel], body));
+    blocks[rel] = blockBody(file, BLOCKS[rel]);
+  }
+  const packageJson = sortKeys(nextBase.packageJson);
+  write(BASE_PATH, toJson({ files, blocks, packageJson, merge: sortKeys(nextBase.merge) }), "direct");
+  // The UI library is recorded once chosen or detected, so later syncs never re-decide it; the
+  // Node version too, so that an intact .nvmrc never follows a new default of the kit (ADR 0006).
+  const lockVars = { ...baseVars };
+  if (vars.uiBase) lockVars.uiBase = vars.uiBase;
+  lockVars.nodeVersion ??= vars.nodeVersion;
+  write(LOCK_PATH, toJson({ kitVersion: KIT_VERSION, modules: [...selected], vars: lockVars }), "direct");
   await flush();
   runPosts(posts.filter((p) => p.last));
 
