@@ -481,18 +481,30 @@ async function loadProjectPrettier(target) {
     const require = createRequire(path.join(target, "package.json"));
     // createRequire resolves Prettier's CJS entry, whose API lives on the default export.
     const mod = await import(pathToFileURL(require.resolve("prettier")).href);
-    return mod.default ?? mod;
+    return { api: mod.default ?? mod, require };
   } catch {
     return null;
   }
 }
 
-async function formatWith(prettier, file, content) {
+// Prettier resolves the plugins named in the config from the current directory, which is not the
+// project during `create` or `apply <dir>`: every format would fail. Resolve them from the project,
+// and keep getFileInfo from reading the config (and its plugins) again.
+function resolvePlugin(require, plugin) {
   try {
-    const info = await prettier.getFileInfo(file, { ignorePath: [] });
+    return typeof plugin === "string" ? require.resolve(plugin) : plugin;
+  } catch {
+    return plugin;
+  }
+}
+
+async function formatWith({ api, require }, file, content) {
+  try {
+    const options = (await api.resolveConfig(file)) ?? {};
+    const plugins = options.plugins?.map((plugin) => resolvePlugin(require, plugin));
+    const info = await api.getFileInfo(file, { ignorePath: [], resolveConfig: false, plugins });
     if (!info.inferredParser) return content;
-    const options = (await prettier.resolveConfig(file)) ?? {};
-    return await prettier.format(content, { ...options, filepath: file });
+    return await api.format(content, { ...options, ...(plugins && { plugins }), filepath: file });
   } catch {
     return content;
   }

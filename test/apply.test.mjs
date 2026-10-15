@@ -174,12 +174,20 @@ async function createProject(modules = ["core", "github-ci"]) {
   return dir;
 }
 
-test("N1 : un fichier reformaté par le projet n'est pas un écart", async () => {
-  const dir = await createProject();
+// Le Prettier du projet (faux : il retire les espaces en fin de ligne), avec un plugin installé dans
+// le projet et absent du dossier courant, comme prettier-plugin-tailwindcss pendant `create`.
+function installFakePrettier(dir) {
   fs.cpSync(path.join(KIT_ROOT, "test/fakes/prettier"), path.join(dir, "node_modules/prettier"), {
     recursive: true,
   });
-  // Le faux Prettier du projet retire les espaces en fin de ligne.
+  writeIn(dir, "node_modules/fake-prettier-plugin/package.json", '{ "name": "fake-prettier-plugin" }\n');
+  writeIn(dir, "node_modules/fake-prettier-plugin/index.js", "module.exports = {};\n");
+  writeIn(dir, ".prettierrc.json", '{ "plugins": ["fake-prettier-plugin"] }\n');
+}
+
+test("N1 : un fichier reformaté par le projet n'est pas un écart", async () => {
+  const dir = await createProject();
+  installFakePrettier(dir);
   writeIn(dir, CI, read(dir, CI).replace(/\n/g, "  \n"));
   const report = await applyFromLock(dir);
   assert.deepEqual([report.written, report.drifts], [[], []]);
