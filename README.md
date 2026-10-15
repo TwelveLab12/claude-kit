@@ -87,7 +87,9 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
 ## Faire évoluer les standards
 
 1. Le **canary** (`.github/workflows/canary.yml`) génère chaque lundi un projet avec tous les
-   modules et lance typecheck, format, lint, tests, build, e2e et un sync d'idempotence. Un échec
+   modules et lance typecheck, format, lint, tests, build, e2e et un sync d'idempotence. Un second
+   job génère un projet avec la version précédente du kit, le synchronise, puis lance la même
+   baseline et un second sync qui ne doit rien écrire (montée de version). Un échec
    planifié est relancé une fois (`canary-retry.yml`) ; si la relance échoue aussi, l'issue
    « Canary en échec » ouverte reçoit un commentaire, ou est ouverte.
 2. `/claude-kit:audit` dans ce repo compare les modules à l'écosystème (versions, notes de version,
