@@ -2,6 +2,32 @@
 
 Chaque version est lue par `/claude-kit:sync` pour expliquer à un projet ce qui change.
 
+## 0.9.0 — 2026-11-08
+
+**Aucune action manuelle.** Le sync met à jour les règles (`.claude/kit/core.md`, `playwright.md`,
+`dependabot.md`, `github-workflow.md`), le template de PR et `dependabot.yml`, et ajoute le script
+`test:e2e:ci` à `package.json`. Un label `github-actions` créé à la main pour Dependabot peut être
+supprimé : `dependabot.yml` ne le pose plus.
+
+Changement de pratique : la baseline avant la PR lance les e2e à chaque PR, en mode CI.
+
+### Règles cohérentes avec la CI (#9)
+
+- Baseline calculée à partir des étapes de la CI, à deux niveaux : avant chaque commit, toutes les
+  étapes sauf le build et les e2e ; avant la PR, toutes. L'ancienne baseline omettait
+  `format:check` et `test:e2e`, que la CI lance (PR rouge sur des e2e jamais lancés en local).
+- `test:e2e:ci` (module `playwright`) : build de production, puis les e2e comme en CI
+  (`next start`, un seul processus, deux réessais), avec un rapport lisible en local. La règle
+  `playwright` donne `--repeat-each=3 --retries=0` pour repérer un test instable, et
+  `/claude-kit:ship-task` le lance sur une spec ajoutée ou modifiée.
+- Dependabot : merge en squash, comme toute PR. La règle demandait un merge commit, contraire au
+  workflow.
+- `dependabot.yml` ne pose plus le label `github-actions`, absent de `labels.json`.
+- Règle « Retours vers le kit » (module `github-workflow`) : un problème qui vient peut-être du kit
+  est un bug sur le kit, un signalement (cause extérieure et passagère) ou reste dans le projet.
+- Tests : la baseline rendue couvre chaque étape de la CI, pour plusieurs combinaisons de modules ;
+  les labels de `dependabot.yml` existent dans `labels.json`. Le canary lance `test:e2e:ci`.
+
 ## 0.8.0 — 2026-11-08
 
 **Action possible : la CI e2e peut passer au rouge après le sync.** Le test de focus de
