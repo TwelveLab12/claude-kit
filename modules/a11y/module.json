@@ -1,7 +1,7 @@
 {
   "id": "a11y",
   "title": "Accessibilité WCAG 2.2 AA / RGAA",
-  "description": "jsx-a11y strict, axe dans Vitest, contraste des tokens du design system, specs e2e par route (axe WCAG 2.2 AA, reflow 320 px, focus visible, structure), règles Claude par thématique RGAA, agent reviewer et /claude-kit:a11y-audit.",
+  "description": "jsx-a11y strict, axe dans Vitest, contraste des tokens du design system, specs e2e par route (axe WCAG 2.2 AA, reflow 320 px, indicateur de focus mesuré à 3:1, structure), règles Claude par thématique RGAA, agent reviewer et /claude-kit:a11y-audit.",
   "group": "qualite",
   "default": true,
   "devDependenciesIf": {

@@ -2,6 +2,33 @@
 
 Chaque version est lue par `/claude-kit:sync` pour expliquer à un projet ce qui change.
 
+## 0.8.0 — 2026-11-08
+
+**Action possible : la CI e2e peut passer au rouge après le sync.** Le test de focus de
+`e2e/a11y.spec.ts` mesure maintenant le contraste de l'indicateur. Un élément dont l'indicateur
+reste sous 3:1 le fait échouer, avec son nom et le contraste mesuré. Cas connus :
+
+- variante `destructive` du bouton shadcn (`focus-visible:border-destructive/40`, 2,12:1) :
+  remplacer par `focus-visible:border-destructive` ;
+- panneau d'onglet shadcn (`outline-none` sur `TabsContent`) : il échouait déjà, retirer
+  `outline-none` pour que l'anneau global s'applique.
+
+Le sync met à jour `e2e/a11y.spec.ts` s'il n'a pas été modifié (sinon il le propose), le
+commentaire du bloc de `globals.css` et les règles `a11y` (`.claude/kit/a11y.md`).
+
+### Indicateur de focus mesuré (#5)
+
+- À chaque tabulation, le test compare deux captures de l'élément, avec et sans focus. Les pixels
+  qui changent doivent contraster à 3:1 sur au moins 1 px (WCAG 1.4.11, RGAA 10.7). L'ancien test
+  passait dès qu'un style changeait : un anneau à 1,96:1 passait.
+- Halo translucide, contour, bordure, fond et pseudo-éléments sont mesurés tels qu'affichés, sur le
+  fond réel. Un élément entièrement caché sous un en-tête ou un bandeau fixe échoue aussi
+  (WCAG 2.4.11).
+- Seuil AA. Le niveau AAA (WCAG 2.4.13, 2 px) est suivi dans #44.
+- Canary : sans l'anneau global de `globals.css`, le test de focus doit échouer.
+- Références : WCAG 2.4.11 (focus non masqué) remplacé par 1.4.11 là où il désignait le contraste
+  de l'indicateur.
+
 ## 0.7.0 — 2026-11-08
 
 **Aucune action manuelle.** Le premier sync après cette version écrit un bloc dans
