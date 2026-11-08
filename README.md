@@ -78,7 +78,7 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
 | `husky` | pre-commit lint-staged (jamais les tests) |
 | `vitest` | Vitest + Testing Library, jsdom, couverture v8 |
 | `playwright` | e2e sur build de prod + smoke test axe |
-| `a11y` | WCAG 2.2 AA / RGAA : jsx-a11y strict, axe en Vitest, contraste des tokens, suite e2e par route + 404 (axe, reflow 320 px, focus visible, structure), `docs/accessibility.md` (couverture RGAA, tests manuels), ADR de stratégie, règles Claude ; `a11yGate=advisory` pour un projet avec dette |
+| `a11y` | WCAG 2.2 AA / RGAA : jsx-a11y strict, axe en Vitest, contraste des tokens, suite e2e par route + 404 (axe, reflow 320 px, indicateur de focus mesuré à 3:1, structure), `docs/accessibility.md` (couverture RGAA, tests manuels), ADR de stratégie, règles Claude ; `a11yGate=advisory` pour un projet avec dette |
 | `docs-adr` | `docs/adr/` + `docs/dependencies.md` généré |
 | `github-ci` | CI générée selon les modules |
 | `vercel-check` | Deployment Check Vercel |
