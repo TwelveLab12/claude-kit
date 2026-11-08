@@ -194,8 +194,10 @@ function computeVars(mods, selected, baseVars, projectName) {
   }
 
   const has = (id) => selected.has(id);
-  const checks = ["typecheck", has("eslint") && "lint:ci", has("vitest") && "test", "build"];
-  vars.baselineChecks = joinFr(checks.filter(Boolean).map((s) => `\`${vars.run} ${s}\``));
+  const baseline = baselineSteps(selected);
+  const command = (script) => `\`${vars.run} ${script}\``;
+  vars.baselineCommit = joinFr(baseline.commit.map(command));
+  vars.baselinePr = joinFr(baseline.pr.map(command));
   vars.ciSteps = ciStepList(selected).join(" → ");
   vars.lintStagedTools = [has("prettier") && "prettier", has("eslint") && "eslint --fix"]
     .filter(Boolean)
@@ -219,6 +221,16 @@ function ciStepList(selected) {
     "build",
     selected.has("playwright") && "test:e2e",
   ].filter(Boolean);
+}
+
+// The local baseline is the CI, in two stages. Before each commit: every CI step but the build and
+// the e2e. Before the PR: the rest too, `test:e2e:ci` standing for both (it builds, then runs the
+// e2e as the CI does: production server, one worker, retries).
+function baselineSteps(selected) {
+  const steps = ciStepList(selected);
+  const commit = steps.filter((step) => step !== "build" && step !== "test:e2e");
+  const rest = steps.filter((step) => !commit.includes(step));
+  return { commit, pr: [...commit, ...(rest.includes("test:e2e") ? ["test:e2e:ci"] : rest)] };
 }
 
 // A green run takes 5 to 8 minutes (workout-manager, October 2026).

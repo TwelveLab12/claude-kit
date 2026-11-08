@@ -55,7 +55,7 @@ argument-hint: "[+module] [-module]"
      proposer de version.
 4. **Appliquer** après accord : même commande sans `--dry-run`, puis reprendre à la main ce qui a
    été retenu dans `drifts`, `proposals`, `conflicts` et `missing`.
-5. **Vérifier** : baseline (`.claude/kit/core.md`) + `format:check` (+ `test:e2e` si Playwright).
+5. **Vérifier** : baseline avant la PR (`.claude/kit/core.md`, tel que le sync vient de l'écrire).
 6. **Commits** : un commit pour ce que le sync a écrit, base et lock compris
    (`chore: sync claude-kit <ancienne> → <nouvelle>`), un commit séparé par reprise à la main, puis
    `/claude-kit:ship-task`.

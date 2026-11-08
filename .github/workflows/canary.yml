@@ -52,6 +52,7 @@ jobs:
           echo "Node $node_major, @types/node $types_major"
           test "$node_major" = "$types_major"
 
+      # Baseline avant la PR (.claude/kit/core.md) : test:e2e:ci fait le build et les e2e.
       - name: Baseline du projet généré
         working-directory: ${{ runner.temp }}/canary
         env:
@@ -61,9 +62,8 @@ jobs:
           pnpm format:check
           pnpm lint:ci
           pnpm test
-          pnpm build
           pnpm exec playwright install --with-deps chromium
-          pnpm test:e2e
+          pnpm test:e2e:ci
 
       # Le test de focus doit détecter un défaut, pas seulement laisser passer un projet sain (#5) :
       # sans le bloc claude-kit de globals.css, les liens n'ont plus que le contour par défaut
@@ -152,9 +152,8 @@ jobs:
           pnpm format:check
           pnpm lint:ci
           pnpm test
-          pnpm build
           pnpm exec playwright install --with-deps chromium
-          pnpm test:e2e
+          pnpm test:e2e:ci
 
       - name: Second sync idempotent
         working-directory: ${{ runner.temp }}/upgrade
