@@ -578,6 +578,19 @@ test("dependabot.yml ignore les bumps majeurs de @types/node", () => {
   assert.match(yml, /dependency-name: "@types\/node"\s+update-types: \["version-update:semver-major"\]/);
 });
 
+test("dependabot.yml ne pose que des labels créés par labels.json", () => {
+  const yml = read(KIT_ROOT, "modules/dependabot/managed/.github/dependabot.yml");
+  const used = [...yml.matchAll(/^ +labels:\n((?: +- .+\n)+)/gm)].flatMap((block) =>
+    [...block[1].matchAll(/- "?([^"\n]+)"?/g)].map((m) => m[1]),
+  );
+  // Une entrée conditionnelle (`if`) n'est créée qu'avec son module : Dependabot ne peut pas y compter.
+  const created = readJsonIn(KIT_ROOT, "modules/github-workflow/labels.json")
+    .filter((label) => !label.if)
+    .map((label) => label.name);
+  assert.ok(used.length > 0);
+  for (const label of used) assert.ok(created.includes(label), `label ${label} absent de labels.json`);
+});
+
 // Baseline (core.md) et template de PR rendus contre le ci.yml rendu, pour plusieurs combinaisons
 // de modules : la baseline avant la PR couvre chaque étape de la CI.
 const BASELINE_COMBOS = {
