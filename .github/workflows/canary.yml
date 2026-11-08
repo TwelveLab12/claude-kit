@@ -65,6 +65,26 @@ jobs:
           pnpm exec playwright install --with-deps chromium
           pnpm test:e2e
 
+      # Le test de focus doit détecter un défaut, pas seulement laisser passer un projet sain (#5) :
+      # sans le bloc claude-kit de globals.css, les liens n'ont plus que le contour par défaut
+      # recoloré par shadcn à 50 % (1,96:1, sous le 3:1 de WCAG 1.4.11).
+      - name: Le test de focus détecte l'anneau absent
+        working-directory: ${{ runner.temp }}/canary
+        env:
+          CI: "true"
+        run: |
+          cp src/app/globals.css "$RUNNER_TEMP/globals.css"
+          sed -i '/>>> claude-kit/,/<<< claude-kit/d' src/app/globals.css
+          if grep -q ':focus-visible' src/app/globals.css; then echo "Bloc non retiré"; exit 1; fi
+          pnpm build
+          if pnpm exec playwright test -g "focus stop" --retries=0 --reporter=line > "$RUNNER_TEMP/focus.log" 2>&1; then
+            cat "$RUNNER_TEMP/focus.log"
+            echo "Le test de focus passe alors que l'anneau global est retiré"
+            exit 1
+          fi
+          grep -q "focus indicators under 3:1" "$RUNNER_TEMP/focus.log" || { cat "$RUNNER_TEMP/focus.log"; exit 1; }
+          cp "$RUNNER_TEMP/globals.css" src/app/globals.css
+
       - name: Sync idempotent
         working-directory: ${{ runner.temp }}/canary
         run: |
