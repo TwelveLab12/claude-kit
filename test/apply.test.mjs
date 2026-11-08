@@ -371,6 +371,58 @@ test("bloc : intact, il suit le kit (F3, module ajouté) ; modifié par le proje
   ]);
 });
 
+// Projet shadcn minimal (globals.css du projet, sans create-next-app) équipé par `create`.
+const GLOBALS = "src/app/globals.css";
+const FOCUS = /:focus-visible \{\s*outline: 3px solid var\(--ring\);/;
+async function createShadcnProject(globals = '@import "tailwindcss";\n:root { --ring: oklch(0.556 0 0); }\n') {
+  const dir = copyFixture("sample");
+  fs.rmSync(path.join(dir, ".claude"), { recursive: true });
+  if (globals !== null) writeIn(dir, GLOBALS, globals);
+  const mods = resolveSelection(loadModules(), ["core", "tailwind-shadcn", "a11y"]);
+  await applyModules(dir, mods, VARS, { fresh: true, dryRun: false, install: false });
+  return dir;
+}
+
+test("a11y : l'anneau :focus-visible global est écrit dans globals.css, le reste du fichier est intact", async () => {
+  const dir = await createShadcnProject();
+  const css = read(dir, GLOBALS);
+  assert.match(css, FOCUS);
+  assert.match(css, /^:root \{ --ring: oklch\(0\.556 0 0\); \}$/m);
+  assert.deepEqual((await applyFromLock(dir)).written, []);
+});
+
+test("a11y : un projet existant reçoit l'anneau au sync (written), puis plus rien (written: [])", async () => {
+  const dir = await createShadcnProject();
+  // Projet d'avant le bloc : ni le bloc dans le fichier, ni son entrée dans la base.
+  writeIn(dir, GLOBALS, '@import "tailwindcss";\n/* perso */\n');
+  editJson(dir, BASE, (base) => delete base.blocks[GLOBALS]);
+  const report = await applyFromLock(dir);
+  assert.deepEqual(report.written, [GLOBALS, BASE]);
+  assert.match(read(dir, GLOBALS), /\/\* perso \*\//);
+  assert.match(read(dir, GLOBALS), FOCUS);
+  assert.deepEqual((await applyFromLock(dir)).written, []);
+});
+
+test("a11y : un anneau modifié par le projet n'est pas écrasé, il est signalé", async () => {
+  const dir = await createShadcnProject();
+  writeIn(dir, GLOBALS, read(dir, GLOBALS).replace("3px solid", "4px solid"));
+  const report = await applyFromLock(dir);
+  assert.match(read(dir, GLOBALS), /4px solid/);
+  assert.deepEqual(report.written, []);
+  assert.deepEqual(
+    report.drifts.map(({ file, block, case: id }) => ({ file, block, case: id })),
+    [{ file: GLOBALS, block: "claude-kit", case: "F4" }],
+  );
+});
+
+test("a11y : sans globals.css, rien n'est créé et l'absence est signalée", async () => {
+  const dir = await createShadcnProject(null);
+  assert.equal(exists(dir, GLOBALS), false);
+  const report = await applyFromLock(dir);
+  assert.equal(exists(dir, GLOBALS), false);
+  assert.deepEqual(report.missing, [{ file: GLOBALS, case: "H1", reason: "fichier hôte absent" }]);
+});
+
 test("M1 : la contribution de merge/ est dans la base, la fusion reste celle d'avant", async () => {
   const dir = await createProject(["core", "claude-settings"]);
   const settings = ".claude/settings.json";

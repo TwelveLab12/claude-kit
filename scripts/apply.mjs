@@ -38,7 +38,11 @@ const LOCK_PATH = ".claude/kit.lock.json";
 const BASE_PATH = ".claude/kit/base.json";
 const CLAUDE_BLOCK = ["<!-- BEGIN:claude-kit -->", "<!-- END:claude-kit -->"];
 const GITIGNORE_BLOCK = ["# >>> claude-kit", "# <<< claude-kit"];
+const CSS_BLOCK = ["/* >>> claude-kit */", "/* <<< claude-kit */"];
 const BLOCKS = { ".gitignore": GITIGNORE_BLOCK, "CLAUDE.md": CLAUDE_BLOCK };
+// Markers of the kit block of a file: fixed for .gitignore and CLAUDE.md, CSS comments for a
+// stylesheet (a `block/` directory of a module, e.g. a11y's global focus ring in globals.css).
+const markersFor = (rel) => BLOCKS[rel] ?? (rel.endsWith(".css") ? CSS_BLOCK : undefined);
 
 // ---------------------------------------------------------------------------------------------
 // Helpers
@@ -659,7 +663,7 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
   };
   // A block is compared on its body, each version normalized inside the project's file.
   const syncBlock = async ({ rel, content: body, host }) => {
-    const markers = BLOCKS[rel];
+    const markers = markersFor(rel);
     const embed = async (text) =>
       text === undefined ? undefined : normalize(rel, replaceBlock(host, markers, text));
     const kit = await embed(body);
@@ -674,19 +678,23 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
   };
 
   // 1. Module files.
+  const fileBlocks = {};
   for (const mod of mods) {
     // `seed/` and `managed/`, plus conditional variants `seed@a+b/` copied only when every listed
     // module is selected (e.g. a11y's contrast test needs vitest + tailwind-shadcn). `fresh/` is
     // a seed written only by `create` (e.g. a numbered ADR that would collide in an existing repo).
+    // `block/` holds the body of a kit block inside a file the project owns (see step 5c).
     for (const entry of fs.readdirSync(mod.dir)) {
-      const match = /^(managed|seed|fresh)(?:@([\w+-]+))?$/.exec(entry);
+      const match = /^(managed|seed|fresh|block)(?:@([\w+-]+))?$/.exec(entry);
       if (!match) continue;
       const [, kind, condition] = match;
       if (kind === "fresh" && !fresh) continue;
       if (condition && !condition.split("+").every((id) => selected.has(id))) continue;
       const dir = path.join(mod.dir, entry);
       for (const rel of walk(dir)) {
-        write(targetPath(rel), render(fs.readFileSync(path.join(dir, rel), "utf8")), kind);
+        const content = render(fs.readFileSync(path.join(dir, rel), "utf8"));
+        if (kind === "block") (fileBlocks[targetPath(rel)] ??= []).push(content.trim());
+        else write(targetPath(rel), content, kind);
       }
     }
     // merge/ keeps its union merge (M1); the base records the kit's contribution. A1 creates none.
@@ -847,6 +855,14 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
     }
   }
 
+  // 5c. Kit blocks in files the project owns (e.g. globals.css), once post commands have generated
+  //     them. The file is the project's: a missing host is reported, never created.
+  for (const [rel, bodies] of Object.entries(fileBlocks)) {
+    const host = readIfExists(path.join(target, rel));
+    if (host === null) report.missing.push({ file: rel, case: "H1", reason: "fichier hôte absent" });
+    else staged.push({ rel, content: bodies.join("\n\n"), kind: "block", host });
+  }
+
   // 6. Files that depend on the final package.json.
   pkg = readJson(pkgPath);
   if (selected.has("docs-adr")) write("docs/dependencies.md", renderDependenciesDoc(pkg), "seed");
@@ -873,8 +889,8 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
   const blocks = {};
   for (const rel of Object.keys(nextBase.blocks).sort()) {
     const { body, host } = nextBase.blocks[rel];
-    const file = await normalize(rel, replaceBlock(host, BLOCKS[rel], body));
-    blocks[rel] = blockBody(file, BLOCKS[rel]);
+    const file = await normalize(rel, replaceBlock(host, markersFor(rel), body));
+    blocks[rel] = blockBody(file, markersFor(rel));
   }
   const packageJson = sortKeys(nextBase.packageJson);
   write(BASE_PATH, toJson({ files, blocks, packageJson, merge: sortKeys(nextBase.merge) }), "direct");
