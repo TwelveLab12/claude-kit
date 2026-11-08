@@ -103,6 +103,8 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
     littéraux (ex. tokens shadcn corrigés pour l'accessibilité) ;
   - `seed@a+b/` ou `managed@a/` : variantes copiées seulement si les modules listés sont
     sélectionnés ;
+  - `block/` ou `block@a+b/` : corps d'un bloc tenu par le kit dans un fichier `.css` du projet
+    (ex. l'anneau de focus de `a11y` dans `globals.css`, [ADR 0009](docs/adr/0009-css-block-in-project-stylesheet.md)) ;
   - `fresh/` : seed écrit uniquement à la création d'un projet (ex. un ADR numéroté, qui
     entrerait en collision avec ceux d'un projet existant).
 - Les fichiers composés (CI, `.prettierrc.json`, lint-staged, bloc `.gitignore`,

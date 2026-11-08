@@ -2,6 +2,24 @@
 
 Chaque version est lue par `/claude-kit:sync` pour expliquer à un projet ce qui change.
 
+## 0.7.0 — 2026-11-08
+
+**Aucune action manuelle.** Le premier sync après cette version écrit un bloc dans
+`src/app/globals.css` (et met `.claude/kit/base.json` à jour), puis `written: []`.
+
+### Anneau `:focus-visible` global (#4, ADR 0009)
+
+- Le module `a11y` (avec `tailwind-shadcn`) installe l'anneau que sa règle annonçait déjà :
+  `:where(a, button, input, textarea, select, summary, [tabindex="0"]):focus-visible` avec
+  `outline: 3px solid var(--ring)` dans `@layer base`. Sans lui, le contour par défaut de shadcn
+  (`outline-ring/50`) donne environ 2,2:1, sous le 3:1 de WCAG 1.4.11.
+- Le bloc est placé entre `/* >>> claude-kit */` et `/* <<< claude-kit */` à la fin de `globals.css`.
+  Il suit le sync à trois voies : intact, il suit le kit ; modifié, il est signalé (`drifts`) ; supprimé,
+  il n'est pas recréé. Le reste du fichier reste au projet.
+- Nouveau : un module peut avoir un dossier `block/` (ou `block@a+b/`) pour tenir un bloc dans une
+  feuille de style du projet. Fichier hôte absent : rien n'est créé, `missing` (cas `H1`).
+- Un projet qui a déjà son propre anneau le garde : supprimer le bloc suffit, il ne revient pas.
+
 ## 0.6.0 — 2026-10-15
 
 **Premier sync après cette version : une reprise à la main, une seule fois.** Le projet n'a pas
