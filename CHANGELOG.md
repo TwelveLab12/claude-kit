@@ -2,6 +2,33 @@
 
 Chaque version est lue par `/claude-kit:sync` pour expliquer à un projet ce qui change.
 
+## 0.10.0 — 2026-11-09
+
+**Action possible, selon le `tsconfig.json` du projet.** Le sync ajoute `.next/dev/types` à son
+`exclude` :
+
+- `tsconfig.json` intact depuis le dernier sync : réécrit par le sync, rien à faire.
+- `tsconfig.json` modifié par le projet (par exemple un `exclude` complété) : le sync propose la
+  version du kit. Ajouter à la main `".next/dev/types"` à `exclude`, sans retirer
+  `.next/dev/types/**/*.ts` d'`include`.
+
+Le sync met aussi à jour la règle `.claude/kit/core.md`.
+
+### Typecheck et build après `next dev` (#48)
+
+- Après un `next dev`, `typecheck` et `build` échouaient sur `.next/dev/types/validator.ts`, serveur
+  arrêté ou non, donc la baseline aussi. Deux défauts de Next en cause : des imports inutilisés que
+  `noUnusedLocals` refuse dans une app sans route handler, depuis Next 16.4
+  (vercel/next.js#99919), et un validateur périmé après la suppression d'une route
+  (vercel/next.js#96620). `next build` vérifie les types avec `tsc` en ligne de commande, qui
+  n'écarte pas ces fichiers.
+- `tsconfig.json` (module `core`) exclut `.next/dev/types`. L'entrée d'`include` reste : Next la
+  remet si elle manque. Les pages restent vérifiées par `.next/types`, que `next typegen` régénère
+  avant `tsc`.
+- Canary : `typecheck` et `build` passent après un `next dev` puis la suppression d'une route ; sans
+  l'exclusion, `typecheck` doit échouer ; une page invalide doit faire échouer `typecheck`. Si l'une
+  de ces deux dernières étapes échoue, Next a changé de comportement : réévaluer l'exclusion.
+
 ## 0.9.0 — 2026-11-08
 
 **Aucune action manuelle.** Le sync met à jour les règles (`.claude/kit/core.md`, `playwright.md`,

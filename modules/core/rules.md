@@ -32,6 +32,12 @@ Strict : `strict`, `noUncheckedIndexedAccess`, `noUnusedLocals`, `noUnusedParame
 `forceConsistentCasingInFileNames`, `noFallthroughCasesInSwitch`. Ne jamais relâcher une option du
 `tsconfig.json` pour faire passer du code : corriger le code.
 
+Garder `.next/dev/types` dans `exclude`. `next dev` y écrit des types qui restent après l'arrêt du
+serveur et peuvent être faux : route supprimée depuis (vercel/next.js#96620), imports inutilisés
+depuis Next 16.4 (vercel/next.js#99919). `typecheck` et `build` échoueraient. Les pages restent
+vérifiées par `.next/types`, que `next typegen` régénère. Laisser aussi `.next/dev/types/**/*.ts`
+dans `include` : Next le remet s'il manque, et `exclude` l'emporte.
+
 ## Next.js
 
 La version installée peut être plus récente que tes connaissances : lire le guide concerné dans
