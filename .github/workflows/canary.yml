@@ -85,6 +85,59 @@ jobs:
           grep -q "focus indicators under 3:1" "$RUNNER_TEMP/focus.log" || { cat "$RUNNER_TEMP/focus.log"; exit 1; }
           cp "$RUNNER_TEMP/globals.css" src/app/globals.css
 
+      # L'indicateur d'un élément arrondi se lit sur la partie droite de ses côtés (#51) : le bouton
+      # shadcn d'origine passe avec des coins de 12 px ou en pilule, le même bouton à l'indicateur
+      # trop pâle échoue. Lues dans l'arrondi, les lignes de lecture donnaient 0 px à un bouton
+      # conforme.
+      - name: Le test de focus lit les éléments arrondis
+        working-directory: ${{ runner.temp }}/canary
+        env:
+          CI: "true"
+        run: |
+          cp e2e/routes.ts "$RUNNER_TEMP/routes.ts"
+          mkdir -p src/app/canary-rounded
+          cat > src/app/canary-rounded/page.tsx <<'EOF'
+          import { Button } from "@/components/ui/button";
+
+          export default function Page() {
+            return (
+              <main className="flex gap-4 p-8">
+                <h1>Arrondis</h1>
+                <Button variant="ghost" size="icon-lg" className="rounded-[12px]" aria-label="Arrondi net">
+                  A
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-lg"
+                  className="rounded-[12px] focus-visible:border-ring/40"
+                  aria-label="Arrondi pâle"
+                >
+                  A
+                </Button>
+                <Button className="rounded-full">Pilule nette</Button>
+                <Button className="rounded-full focus-visible:border-ring/40">Pilule pâle</Button>
+              </main>
+            );
+          }
+          EOF
+          sed -i 's|\["/"\]|["/", "/canary-rounded"]|' e2e/routes.ts
+          grep -q '"/canary-rounded"' e2e/routes.ts || { echo "Route non ajoutée"; exit 1; }
+          pnpm build
+          if pnpm exec playwright test -g "canary-rounded.*focus stop" --retries=0 --reporter=line > "$RUNNER_TEMP/rounded.log" 2>&1; then
+            cat "$RUNNER_TEMP/rounded.log"
+            echo "Le test de focus accepte un indicateur trop pâle sur un élément arrondi"
+            exit 1
+          fi
+          if grep -qE "Arrondi net|Pilule nette" "$RUNNER_TEMP/rounded.log"; then
+            cat "$RUNNER_TEMP/rounded.log"
+            echo "Le test de focus rejette un élément arrondi conforme (#51)"
+            exit 1
+          fi
+          grep -q "Arrondi pâle" "$RUNNER_TEMP/rounded.log" && grep -q "Pilule pâle" "$RUNNER_TEMP/rounded.log" \
+            || { cat "$RUNNER_TEMP/rounded.log"; exit 1; }
+          rm -r src/app/canary-rounded
+          cp "$RUNNER_TEMP/routes.ts" e2e/routes.ts
+
       # `next dev` écrit dans .next/dev/types des types qui restent après l'arrêt du serveur et
       # peuvent être faux : route supprimée depuis (vercel/next.js#96620), imports inutilisés que
       # noUnusedLocals refuse depuis Next 16.4 (vercel/next.js#99919). Le tsconfig du module core

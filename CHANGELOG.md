@@ -2,6 +2,24 @@
 
 Chaque version est lue par `/claude-kit:sync` pour expliquer à un projet ce qui change.
 
+## 0.11.0 — 2026-11-09
+
+**Aucune action manuelle.** Le sync met à jour `e2e/a11y.spec.ts` s'il n'a pas été modifié (sinon
+il le propose) et la règle `.claude/kit/a11y.md`. Un élément arrondi qui échouait au test de focus
+avec `0 px at 3:1` alors que son indicateur est net peut maintenant passer.
+
+### Test de focus : lecture entre les coins arrondis (#51)
+
+- Le test lisait l'indicateur à 25, 50 et 75 % de chaque côté de l'élément. Sur un petit élément
+  aux coins arrondis, deux lignes sur trois tombaient dans l'arrondi, où le lissage affaiblit le
+  contraste : un bouton shadcn d'origine (`ghost`, `icon-lg`, coins de 12 px), dont la bordure de
+  1 px contraste à plus de 4:1, était rejeté (constaté sur dnd-character-manager).
+- Les lignes de lecture sont maintenant placées sur la partie droite de chaque côté, entre les
+  arrondis (rayons réduits comme le fait CSS quand ils dépassent la boîte). Un côté entièrement
+  arrondi, comme celui d'une pilule, est lu en son milieu.
+- Canary : un bouton d'origine aux coins de 12 px et une pilule passent ; les mêmes, avec un
+  indicateur trop pâle, échouent.
+
 ## 0.10.0 — 2026-11-09
 
 **Action possible, selon le `tsconfig.json` du projet.** Le sync ajoute `.next/dev/types` à son
