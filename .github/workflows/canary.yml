@@ -85,6 +85,67 @@ jobs:
           grep -q "focus indicators under 3:1" "$RUNNER_TEMP/focus.log" || { cat "$RUNNER_TEMP/focus.log"; exit 1; }
           cp "$RUNNER_TEMP/globals.css" src/app/globals.css
 
+      # `next dev` écrit dans .next/dev/types des types qui restent après l'arrêt du serveur et
+      # peuvent être faux : route supprimée depuis (vercel/next.js#96620), imports inutilisés que
+      # noUnusedLocals refuse depuis Next 16.4 (vercel/next.js#99919). Le tsconfig du module core
+      # les exclut (#48) : typecheck et build doivent passer après un `next dev` puis la suppression
+      # d'une route.
+      - name: Typecheck et build après next dev
+        working-directory: ${{ runner.temp }}/canary
+        run: |
+          mkdir -p src/app/canary-stale
+          printf 'export default function Page() {\n  return <p>stale</p>;\n}\n' > src/app/canary-stale/page.tsx
+          setsid pnpm dev --port 3100 > "$RUNNER_TEMP/dev.log" 2>&1 &
+          dev=$!
+          served=
+          for _ in $(seq 1 60); do
+            if curl -sf -o /dev/null http://localhost:3100/canary-stale; then served=1; break; fi
+            sleep 1
+          done
+          kill -- -"$dev" 2>/dev/null || true
+          wait "$dev" 2>/dev/null || true
+          if [ -z "$served" ]; then cat "$RUNNER_TEMP/dev.log"; echo "next dev n'a pas servi /canary-stale"; exit 1; fi
+          if ! grep -q canary-stale .next/dev/types/validator.ts; then
+            echo "Le validateur de dev ne mentionne pas la route : le scénario ne teste plus rien, à revoir (#48)."
+            exit 1
+          fi
+          rm -r src/app/canary-stale
+          pnpm typecheck
+          pnpm build
+
+      # Le contrôle doit détecter le défaut : sans l'exclusion, les types de dev périmés de l'étape
+      # précédente font échouer typecheck.
+      - name: Sans l'exclusion, typecheck échoue sur les types de dev
+        working-directory: ${{ runner.temp }}/canary
+        run: |
+          cp tsconfig.json "$RUNNER_TEMP/tsconfig.json"
+          sed -i 's|, ".next/dev/types"\]|]|' tsconfig.json
+          if grep -q '".next/dev/types"' tsconfig.json; then echo "Exclusion non retirée"; exit 1; fi
+          if pnpm typecheck > "$RUNNER_TEMP/typecheck.log" 2>&1; then
+            cat "$RUNNER_TEMP/typecheck.log"
+            echo "typecheck passe sans l'exclusion : Next ne laisse plus de types de dev périmés visibles par tsc."
+            echo "Réévaluer l'exclusion de .next/dev/types dans le tsconfig du module core (#48, vercel/next.js#96620 et #99919)."
+            exit 1
+          fi
+          grep -q '^\.next/dev/types/.*error TS' "$RUNNER_TEMP/typecheck.log" || { cat "$RUNNER_TEMP/typecheck.log"; exit 1; }
+          cp "$RUNNER_TEMP/tsconfig.json" tsconfig.json
+
+      # L'exclusion ne doit pas faire perdre la vérification des pages : une page invalide fait
+      # échouer typecheck sur .next/types/validator.ts, que `next typegen` régénère.
+      - name: Le typecheck détecte une page invalide
+        working-directory: ${{ runner.temp }}/canary
+        run: |
+          mkdir -p src/app/canary-invalid
+          printf 'export default 42;\n' > src/app/canary-invalid/page.tsx
+          if pnpm typecheck > "$RUNNER_TEMP/typecheck.log" 2>&1; then
+            cat "$RUNNER_TEMP/typecheck.log"
+            echo "typecheck accepte une page invalide : Next ne vérifie plus les pages dans .next/types."
+            echo "Réévaluer l'exclusion de .next/dev/types dans le tsconfig du module core (#48)."
+            exit 1
+          fi
+          grep -q '^\.next/types/validator\.ts.*error TS2344' "$RUNNER_TEMP/typecheck.log" || { cat "$RUNNER_TEMP/typecheck.log"; exit 1; }
+          rm -r src/app/canary-invalid
+
       - name: Sync idempotent
         working-directory: ${{ runner.temp }}/canary
         run: |
