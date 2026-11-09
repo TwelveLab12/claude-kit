@@ -577,3 +577,56 @@ test("dependabot.yml ignore les bumps majeurs de @types/node", () => {
   );
   assert.match(yml, /dependency-name: "@types\/node"\s+update-types: \["version-update:semver-major"\]/);
 });
+
+test("dependabot.yml ne pose que des labels créés par labels.json", () => {
+  const yml = read(KIT_ROOT, "modules/dependabot/managed/.github/dependabot.yml");
+  const used = [...yml.matchAll(/^ +labels:\n((?: +- .+\n)+)/gm)].flatMap((block) =>
+    [...block[1].matchAll(/- "?([^"\n]+)"?/g)].map((m) => m[1]),
+  );
+  // Une entrée conditionnelle (`if`) n'est créée qu'avec son module : Dependabot ne peut pas y compter.
+  const created = readJsonIn(KIT_ROOT, "modules/github-workflow/labels.json")
+    .filter((label) => !label.if)
+    .map((label) => label.name);
+  assert.ok(used.length > 0);
+  for (const label of used) assert.ok(created.includes(label), `label ${label} absent de labels.json`);
+});
+
+// Baseline (core.md) et template de PR rendus contre le ci.yml rendu, pour plusieurs combinaisons
+// de modules : la baseline avant la PR couvre chaque étape de la CI.
+const BASELINE_COMBOS = {
+  "tous les outils": ["prettier", "eslint", "vitest", "playwright"],
+  "sans prettier": ["eslint", "vitest", "playwright"],
+  "sans vitest": ["prettier", "eslint", "playwright"],
+  "sans playwright": ["prettier", "eslint", "vitest"],
+  "ni outil ni test": [],
+};
+const scriptsIn = (text) => [...text.matchAll(/`pnpm ([\w:]+)`/g)].map((m) => m[1]);
+// Un script de la baseline couvre lui-même, les scripts qu'il lance (`pnpm build`) et ceux qu'il
+// relance en mode CI (`CI=1 playwright test` = `test:e2e`).
+const coveredBy = (scripts, name) => {
+  const script = scripts[name] ?? "";
+  const runs = [...script.matchAll(/\bpnpm (?:run )?([\w:]+)/g)].map((m) => m[1]);
+  const asCi = Object.keys(scripts).filter((key) => script.includes(`CI=1 ${scripts[key]} `));
+  return [name, ...runs, ...asCi];
+};
+
+for (const [name, tools] of Object.entries(BASELINE_COMBOS)) {
+  test(`baseline : dérivée des étapes de la CI (${name})`, async () => {
+    const dir = await createProject(["core", "github-ci", "github-workflow", ...tools]);
+    const ciSteps = [...ciJobs(read(dir, CI)).build.matchAll(/- run: pnpm (?!install|exec)(\S+)/g)]
+      .map((m) => m[1]);
+    const core = read(dir, ".claude/kit/core.md");
+    const commit = scriptsIn(core.match(/^- Avant chaque commit : (.+)$/m)[1]);
+    const pr = scriptsIn(core.match(/^- Avant d'ouvrir une PR : (.+)$/m)[1]);
+    // `build` vient de create-next-app, absent du projet d'exemple.
+    const scripts = { build: "next build", ...readJsonIn(dir, "package.json").scripts };
+
+    assert.deepEqual(commit, ciSteps.filter((step) => step !== "build" && step !== "test:e2e"));
+    assert.deepEqual(pr.slice(0, commit.length), commit);
+    const covered = pr.flatMap((script) => coveredBy(scripts, script));
+    for (const step of ciSteps) assert.ok(covered.includes(step), `étape ${step} absente de la baseline`);
+    for (const script of pr) assert.ok(script in scripts, `script ${script} absent de package.json`);
+    const template = read(dir, ".github/pull_request_template.md");
+    assert.deepEqual(scriptsIn(template.match(/^- \[ \] Baseline avant la PR.+$/m)[0]), pr);
+  });
+}

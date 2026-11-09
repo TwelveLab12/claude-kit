@@ -104,9 +104,9 @@ jamais écrire dedans) :
 
 ## 5. Vérifier
 
-Lancer la baseline indiquée dans `.claude/kit/core.md` (typecheck, lint:ci, test, build) plus
-`format:check`, et `test:e2e` si Playwright est sélectionné. Tout doit être vert avant le commit. Ne
-pas maquiller un échec : le signaler avec la sortie.
+Lancer la baseline avant la PR indiquée dans `.claude/kit/core.md` : les étapes de la CI, e2e
+compris si Playwright est sélectionné. Tout doit être vert avant le commit. Ne pas maquiller un
+échec : le signaler avec la sortie.
 
 ## 6. Git et GitHub
 

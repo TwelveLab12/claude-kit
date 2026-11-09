@@ -31,7 +31,8 @@ argument-hint: "[+module] [-module]"
    - `drifts` : fichiers managed ou blocs (`block`) que le projet a modifiés (F4), supprimés (F6),
      modifiés comme le kit (F5), ou qui diffèrent sans base (F2). Rien n'est écrasé, et l'écart est
      signalé à chaque sync tant qu'il existe. Le trancher avec l'utilisateur :
-     - défaut du kit → issue sur `TwelveLab12/claude-kit` (« Retours des projets ») ;
+     - défaut du kit → issue `bug` sur `TwelveLab12/claude-kit` (« Retours vers le kit » de
+       `.claude/kit/github-workflow.md`) ;
      - besoin propre au projet → un script de `package.json` ou un fichier propre au projet, puis
        reprendre la version du kit ;
      - changement du kit à reprendre (F2, F5) → copier `proposal` ;
@@ -55,10 +56,11 @@ argument-hint: "[+module] [-module]"
      proposer de version.
 4. **Appliquer** après accord : même commande sans `--dry-run`, puis reprendre à la main ce qui a
    été retenu dans `drifts`, `proposals`, `conflicts` et `missing`.
-5. **Vérifier** : baseline (`.claude/kit/core.md`) + `format:check` (+ `test:e2e` si Playwright).
+5. **Vérifier** : baseline avant la PR (`.claude/kit/core.md`, tel que le sync vient de l'écrire).
 6. **Commits** : un commit pour ce que le sync a écrit, base et lock compris
    (`chore: sync claude-kit <ancienne> → <nouvelle>`), un commit séparé par reprise à la main, puis
    `/claude-kit:ship-task`.
 
 Ne jamais éditer un fichier géré dans le projet pour « corriger » le kit : si une règle ou une
-config du kit est fausse, le noter pour une issue sur `TwelveLab12/claude-kit`.
+config du kit est fausse, c'est une issue `bug` sur `TwelveLab12/claude-kit` (règle « Retours vers
+le kit » de `.claude/kit/github-workflow.md`, ou « Retours des projets » du CLAUDE.md du kit).

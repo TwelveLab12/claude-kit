@@ -25,7 +25,7 @@ Un nouveau comportement du script vient avec son test, et un test doit échouer 
 défaut. Workflow CI : `.github/workflows/test.yml`.
 
 Tester un changement : générer un projet jetable hors du repo (ex. `$(mktemp -d)/canary`), y lancer
-typecheck, format:check, lint:ci, test, build, test:e2e, puis `apply . --from-lock --no-install`
+la baseline avant la PR de son `.claude/kit/core.md`, puis `apply . --from-lock --no-install`
 doit renvoyer `written: []` (idempotence). C'est exactement ce que fait le canary en CI. Son
 second job fait de même pour une montée de version : projet généré avec le tag précédent
 (`git worktree add <tmp> v<x.y.z>`), synchronisé avec la branche, puis baseline et second sync.

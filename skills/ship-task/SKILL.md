@@ -14,8 +14,10 @@ argument-hint: "[--merge]"
    mélangés, proposer de les séparer (ou de les sortir dans une autre branche/issue). Si une
    dépendance ou une décision structurelle a changé, vérifier `docs/dependencies.md` et les ADR.
 3. **À jour** : `git fetch origin && git rebase origin/main` (jamais de merge de `main`).
-4. **Baseline** (voir `.claude/kit/core.md`) + `format:check`, et `test:e2e` si le parcours
-   touché est couvert. Rouge → corriger d'abord, ne pas ouvrir la PR.
+4. **Baseline avant la PR** (voir `.claude/kit/core.md`) : les étapes de la CI, e2e compris
+   (`test:e2e:ci`). Si le diff ajoute ou modifie une spec e2e, la relancer seule sans réessai :
+   `test:e2e:ci --repeat-each=3 --retries=0 <spec>` (un échec signale un test instable). Rouge →
+   corriger d'abord, ne pas ouvrir la PR.
    **Accessibilité** (si `.claude/kit/a11y.md` existe et que le diff touche l'UI : `*.tsx`,
    `*.css`, contenus affichés) : lancer l'agent `a11y-reviewer` du plugin sur `origin/main...HEAD`.
    Un constat « bloquant » se corrige avant la PR ; les « majeurs » se corrigent ou deviennent une

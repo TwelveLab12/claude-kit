@@ -13,8 +13,11 @@ Toujours passer par `{{run}} <script>`{{#if volta}}, jamais `pnpm` nu. L'alias s
 `next typegen` est nécessaire avant `tsc` : les helpers `LayoutProps`/`PageProps` ne sont générés
 qu'au dev/build/typegen, et sans eux `tsc` échoue sur un clone frais.
 
-**Baseline avant tout commit** (c'est ce que la CI vérifie, ce n'est pas optionnel) :
-{{baselineChecks}}.
+**Baseline** : les étapes de la CI, lancées en local (ce n'est pas optionnel).
+
+- Avant chaque commit : {{baselineCommit}}.
+- Avant d'ouvrir une PR : {{baselinePr}}.{{#if playwright}} `test:e2e:ci` refait le build de
+  production et lance les e2e comme la CI (voir `.claude/kit/playwright.md`).{{/if}}
 
 Version de Node : {{#if volta}}épinglée par Volta dans `package.json` (champ `volta`), que Volta
 applique en local et que la CI lit aussi. La changer avec `volta pin node@<version>`, jamais en

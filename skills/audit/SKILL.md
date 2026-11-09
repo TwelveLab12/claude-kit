@@ -38,7 +38,7 @@ description: Vérifie la fraîcheur des standards — dans un projet, l'écart a
    (nouvelle option de config, flag de `create-next-app`, défaut du CLI shadcn, action GitHub
    dépréciée…). Chaque constat cite sa source.
 4. **Canary local** : `node scripts/apply.mjs create <tmp> --modules all --var owner=TwelveLab12
-   --var boardNumber=1`, puis baseline + `format:check` + `test:e2e` dans `<tmp>`.
+   --var boardNumber=1`, puis la baseline avant la PR de `<tmp>/.claude/kit/core.md`.
 5. **Proposer**, sans appliquer : une issue par évolution (label `enhancement` ou `chore`), avec
    module touché, changement, source et risque. L'implémentation suit ensuite le workflow normal
    (`/claude-kit:start-task`), avec bump de version dans `plugin.json` et entrée dans
