@@ -6,6 +6,13 @@ labels, board, PR) de TwelveLab12, sous forme de plugin Claude Code. Remplace
 `create-next-app@latest` puis y applique les modules choisis, et un canary hebdomadaire vérifie que
 l'ensemble tient toujours sur les dernières versions.
 
+> **Statut : alpha.** claude-kit est mon outil de travail personnel, pensé pour ma stack (Next.js,
+> TypeScript, pnpm, Vercel, GitHub Projects) et mes conventions. Tant qu'il est en 0.x, une version
+> mineure peut demander une action manuelle : le [CHANGELOG](CHANGELOG.md) la décrit à chaque fois.
+> Je ne le conseille pas pour un besoin général. Ce qui se transpose, ce sont ses principes :
+> TypeScript strict, analyse statique (ESLint, Prettier), une CI qui bloque, le workflow issue →
+> branche → PR et les ADR.
+
 ## Installation (une fois par machine)
 
 Dans un terminal :
@@ -153,3 +160,7 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
 - Dans ce repo : protection de `main` avec le check `release-check` obligatoire (ADR 0005), dès
   que le dépôt est public (ou avec un compte Pro) ; d'ici là, `/claude-kit:ship-task` exige une CI
   verte avant de merger.
+
+## Licence
+
+[MIT](LICENSE).
