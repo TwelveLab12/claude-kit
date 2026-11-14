@@ -157,9 +157,8 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
   `sudo apt-get install -y $(pnpm exec playwright install-deps --dry-run chromium 2>/dev/null | sed -n 's/^  //p')`
   (avec Volta : `volta run pnpm exec …`). Seul `apt` passe en root : un shim Volta ne fonctionne
   pas sous `sudo`.
-- Dans ce repo : protection de `main` avec le check `release-check` obligatoire (ADR 0005), dès
-  que le dépôt est public (ou avec un compte Pro) ; d'ici là, `/claude-kit:ship-task` exige une CI
-  verte avant de merger.
+- Dans ce repo : `main` est protégée, avec les checks `test` et `release-check` obligatoires
+  (ADR 0005), administrateurs compris ; ni push forcé ni suppression.
 
 ## Licence
 
