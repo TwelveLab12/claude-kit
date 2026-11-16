@@ -59,8 +59,8 @@ dans le système de fichiers Linux (`~/Projects`), pas sous `/mnt/c`. Le kit doi
   `.claude-plugin/`) monte `version` dans `.claude-plugin/plugin.json` au-dessus de celle de `main`
   (semver : majeure si un sync demande une action manuelle, patch si rien ne change pour les
   projets) et ajoute l'entrée `## <version>` au `CHANGELOG.md`. Vérifié en CI par
-  `scripts/check-release.mjs` (pas encore obligatoire : dépôt privé, donc CI verte exigée avant
-  tout merge) ; le merge pose le tag `v<version>` (ADR 0005).
+  `scripts/check-release.mjs` (check `release-check`, obligatoire sur `main` avec `test`) ; le
+  merge pose le tag `v<version>` (ADR 0005).
 - Règles (`rules.md`) en français, courtes, impératives, avec le *pourquoi* quand il n'est pas
   évident.
 - Workflow Git : celui du module `github-workflow` (issue, branche, PR, squash-merge). Board du

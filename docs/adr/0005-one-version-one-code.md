@@ -19,9 +19,9 @@ code d'une version.
 - Une version inférieure à celle de `main` est toujours refusée.
 - `scripts/check-release.mjs` le vérifie sur chaque PR (job `release-check`). Au push sur `main`,
   le workflow `Release` pose le tag `v<version>` s'il n'existe pas.
-- Le check devient obligatoire sur `main` dès que le dépôt est public (ou avec un compte Pro) : un
-  dépôt privé gratuit n'a pas de protection de branche. D'ici là, `/claude-kit:ship-task` exige une
-  CI verte avant de merger.
+- Le check est obligatoire sur `main`, avec le job `test`, depuis le passage du dépôt en public
+  (14/11/2026, #22) : un dépôt privé gratuit n'a pas de protection de branche. Avant, seul
+  `/claude-kit:ship-task` exigeait une CI verte avant de merger.
 
 ## Conséquences
 
