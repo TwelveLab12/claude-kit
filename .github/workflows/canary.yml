@@ -254,9 +254,28 @@ jobs:
           node "$RUNNER_TEMP/kit-previous/scripts/apply.mjs" create "$RUNNER_TEMP/upgrade" --modules all \
             --var owner=TwelveLab12 --var boardNumber=1 --var a11yGate=advisory
 
+      # `pipefail` : sans lui, un sync en échec passerait derrière `tee`. Rapport gardé hors du
+      # projet : `format:check` le lirait.
       - name: Sync avec la version courante
         working-directory: ${{ runner.temp }}/upgrade
-        run: node "$GITHUB_WORKSPACE/scripts/apply.mjs" apply . --from-lock
+        run: |
+          set -o pipefail
+          node "$GITHUB_WORKSPACE/scripts/apply.mjs" apply . --from-lock | tee "$RUNNER_TEMP/sync.log"
+          sed -n '/claude-kit report/,$p' "$RUNNER_TEMP/sync.log" | tail -n +2 > "$RUNNER_TEMP/sync-report.json"
+
+      # Une configuration Prettier réécrite retrie les classes du projet : le CHANGELOG demande alors
+      # `pnpm format` (action manuelle, #73). Le job la reproduit, et seulement dans ce cas : quand le
+      # sync n'a pas touché `.prettierrc.json`, `format:check` juge tel quel ce qu'il a écrit.
+      - name: Reformatage si le sync a réécrit la configuration Prettier
+        working-directory: ${{ runner.temp }}/upgrade
+        run: |
+          rewritten=$(node -p 'require(process.argv[1]).written.includes(".prettierrc.json")' \
+            "$RUNNER_TEMP/sync-report.json")
+          if [ "$rewritten" = true ]; then
+            pnpm format
+          else
+            echo "Configuration Prettier inchangée : pas de reformatage"
+          fi
 
       - name: Baseline du projet synchronisé
         working-directory: ${{ runner.temp }}/upgrade
