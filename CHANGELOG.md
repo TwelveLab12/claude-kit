@@ -2,6 +2,35 @@
 
 Chaque version est lue par `/claude-kit:sync` pour expliquer à un projet ce qui change.
 
+## 0.13.0 — 2026-11-19
+
+**Action manuelle avec `tailwind-shadcn` : reformater le projet.** Le sync réécrit
+`.prettierrc.json`. Le tri des classes change dans tout le projet, donc `format:check` échoue tant
+que le projet n'est pas reformaté. Après le sync, lancer `pnpm format`, puis faire un commit `chore`
+dédié qui ne contient que ce reformatage. Si `.prettierrc.json` a été modifié par le projet, le sync
+le signale sans l'écraser : y ajouter à la main les deux options ci-dessous, puis reformater.
+
+Sans `tailwind-shadcn`, rien ne change.
+
+### Prettier : tokens du projet et classes de `cn()` et `cva()` triés (#73)
+
+- Le plugin `prettier-plugin-tailwindcss` était déclaré sans `tailwindStylesheet`. Avec Tailwind
+  v4, il ne connaissait donc pas les tokens `@theme` du projet (`bg-card`, `text-primary`,
+  `border-border`). Il les rangeait en tête, comme des classes inconnues. Constaté dans
+  workout-manager et dnd-character-manager.
+- Sans `tailwindFunctions`, les classes passées à `cn()` et `cva()` n'étaient pas triées : variantes
+  des composants `ui/`, classes conditionnelles.
+- `.prettierrc.json` déclare maintenant `"tailwindStylesheet": "./src/app/globals.css"`
+  (`./app/globals.css` pour un projet sans `src/`) et `"tailwindFunctions": ["cn", "cva"]`.
+- Prérequis : la feuille Tailwind du projet est à cet endroit, comme le supposent déjà la règle
+  `tailwind-shadcn` et le module `a11y`. Sinon Prettier échoue sur chaque fichier TS/TSX (fichier
+  introuvable).
+- Tests : le `.prettierrc.json` rendu a les deux options avec `tailwind-shadcn` et aucune sans ;
+  le chemin de la feuille suit la disposition du projet.
+- Canary : le job de montée de version lance `pnpm format` quand le sync réécrit
+  `.prettierrc.json`, comme le demande l'action manuelle. Dans les autres cas, `format:check` juge
+  le projet synchronisé sans reformatage.
+
 ## 0.12.0 — 2026-11-19
 
 **Aucune action manuelle**, sauf si le projet a modifié son `ci.yml`. Avec `vercel-check`, le sync
