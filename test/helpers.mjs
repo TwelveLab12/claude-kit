@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 export const KIT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const FIXTURES = path.join(KIT_ROOT, "test", "fixtures");
-const FAKES = path.join(KIT_ROOT, "test", "fakes");
+export const FAKES = path.join(KIT_ROOT, "test", "fakes");
 
 export function tmpDir(prefix = "claude-kit-test-") {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

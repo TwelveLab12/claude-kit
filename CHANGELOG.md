@@ -2,6 +2,31 @@
 
 Chaque version est lue par `/claude-kit:sync` pour expliquer à un projet ce qui change.
 
+## 0.12.0 — 2026-11-19
+
+**Aucune action manuelle**, sauf si le projet a modifié son `ci.yml`. Avec `vercel-check`, le sync
+réécrit `.github/workflows/ci.yml` et la règle `.claude/kit/vercel-check.md`. Le Deployment Check
+garde son nom : rien à changer dans Vercel. Si `ci.yml` a été modifié, le sync le signale : y
+reporter à la main les deux étapes « Statut Vercel », la variable `VERCEL_CHECK` du job `build` et
+la permission `statuses: write`, puis retirer l'étape `vercel/repository-dispatch/actions/status`
+et la permission `actions: read`.
+
+### Statut Vercel posé par le job `build` (#77, ADR 0010)
+
+- `vercel/repository-dispatch/actions/status@v1` jugeait le premier job du run, quel que soit son
+  nom (vercel/repository-dispatch#15). Avec `a11yGate=advisory`, `ci.yml` a deux jobs, et leur
+  ordre dans l'API dépend de leur création : sur un projet généré, 5 tentatives sur 10 d'un build
+  en échec ont posé `success`. Vercel aurait mis ce build en production.
+- Le job `build` pose maintenant lui-même son statut avec `gh api` : `pending` en première étape,
+  puis l'état du job (`job.status`) en dernière étape, exécutée même après un échec
+  (`if: always()`). Seul un job réussi pose `success` ; un job en échec ou annulé pose `failure`.
+  Si la dernière étape ne tourne pas, le statut reste `pending`, ce qui bloque aussi la mise en
+  production.
+- Permissions du job `build` : `statuses: write`. `actions: read` n'est plus demandé.
+- Un projet sans `a11yGate=advisory` n'a qu'un job dans `ci.yml` : il n'était pas touché, et rien
+  ne change pour lui en dehors du fichier.
+- Canary : le job de montée de version génère son projet en mode `a11yGate=advisory`.
+
 ## 0.11.0 — 2026-11-09
 
 **Aucune action manuelle.** Le sync met à jour `e2e/a11y.spec.ts` s'il n'a pas été modifié (sinon

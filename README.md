@@ -88,7 +88,7 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
 | `a11y` | WCAG 2.2 AA / RGAA : jsx-a11y strict, axe en Vitest, contraste des tokens, suite e2e par route + 404 (axe, reflow 320 px, indicateur de focus mesuré à 3:1, structure), `docs/accessibility.md` (couverture RGAA, tests manuels), ADR de stratégie, règles Claude ; `a11yGate=advisory` pour un projet avec dette |
 | `docs-adr` | `docs/adr/` + `docs/dependencies.md` généré |
 | `github-ci` | CI générée selon les modules |
-| `vercel-check` | Deployment Check Vercel |
+| `vercel-check` | Deployment Check Vercel : statut de commit posé par le job `build` lui-même, indépendant des autres jobs (ADR 0010) |
 | `dependabot` | npm (minor/patch groupés) + actions |
 | `github-workflow` | règles issue/label/PR, un board par dépôt (Backlog / À faire / En cours / Terminé), templates d'issue et de PR |
 | `claude-settings` | `.claude/settings.json` partagé (permissions, garde-fous, plugin) |

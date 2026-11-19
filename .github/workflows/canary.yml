@@ -208,7 +208,8 @@ jobs:
 
   # Montée de version (ADR 0008) : un projet généré avec la version précédente du kit (le plus haut
   # tag v* inférieur à la version de plugin.json) est synchronisé avec le code courant, passe la
-  # baseline, puis un second sync n'écrit rien.
+  # baseline, puis un second sync n'écrit rien. Généré en mode a11yGate=advisory, l'autre variante
+  # du ci.yml, que le premier job ne couvre pas (#77).
   upgrade:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -242,7 +243,7 @@ jobs:
           echo "Aucun tag inférieur à $current"
           exit 1
 
-      - name: Scaffold avec le tag précédent (tous les modules)
+      - name: Scaffold avec le tag précédent (tous les modules, a11yGate=advisory)
         env:
           TAG: ${{ steps.previous.outputs.tag }}
         run: |
@@ -251,7 +252,7 @@ jobs:
           git config --global init.defaultBranch main
           git worktree add --detach "$RUNNER_TEMP/kit-previous" "$TAG"
           node "$RUNNER_TEMP/kit-previous/scripts/apply.mjs" create "$RUNNER_TEMP/upgrade" --modules all \
-            --var owner=TwelveLab12 --var boardNumber=1
+            --var owner=TwelveLab12 --var boardNumber=1 --var a11yGate=advisory
 
       - name: Sync avec la version courante
         working-directory: ${{ runner.temp }}/upgrade
