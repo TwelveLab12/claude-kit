@@ -1,6 +1,6 @@
 {
   "name": "claude-kit",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "Scaffold interactif Next.js/TypeScript + conventions Claude Code et workflow GitHub (issues, board, PR) de TwelveLab12.",
   "author": {
     "name": "Bruno Schvartz"

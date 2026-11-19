@@ -381,9 +381,16 @@ function renderCi(selected, vars) {
   return lines.join("\n") + "\n";
 }
 
-function renderPrettierrc(selected) {
+function renderPrettierrc(selected, vars) {
   const config = { semi: true, singleQuote: false, printWidth: 100 };
-  if (selected.has("tailwind-shadcn")) config.plugins = ["prettier-plugin-tailwindcss"];
+  if (selected.has("tailwind-shadcn")) {
+    config.plugins = ["prettier-plugin-tailwindcss"];
+    // Tailwind v4: without the stylesheet, the plugin does not know the project's `@theme` tokens
+    // (bg-card, text-primary) and sorts them first, as unknown classes. Path relative to this file.
+    config.tailwindStylesheet = `./${vars.src}app/globals.css`;
+    // Classes passed to these functions are sorted too (component variants, conditional classes).
+    config.tailwindFunctions = ["cn", "cva"];
+  }
   return toJson(config);
 }
 
@@ -777,7 +784,7 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
   // 2. Composite files.
   if (selected.has("github-ci")) write(".github/workflows/ci.yml", renderCi(selected, vars));
   if (selected.has("prettier")) {
-    write(".prettierrc.json", renderPrettierrc(selected));
+    write(".prettierrc.json", renderPrettierrc(selected, vars));
     write(".prettierignore", renderPrettierignore(mods));
   }
   // Volta projects pin Node in package.json (post command of `core`): no second source in .nvmrc.

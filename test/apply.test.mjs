@@ -287,6 +287,36 @@ test("Prettier installé en cours de passage : trouvé malgré un premier essai 
   assert.ok(await loadProjectPrettier(dir));
 });
 
+// #73 : sans tailwindStylesheet, le plugin ignore les tokens @theme du projet (bg-card rangé en
+// tête) ; sans tailwindFunctions, il ne trie pas les classes passées à cn() et cva().
+const PRETTIERRC = ".prettierrc.json";
+const PRETTIER_BASE = { semi: true, singleQuote: false, printWidth: 100 };
+
+test("Prettier : avec tailwind-shadcn, feuille du projet et fonctions cn/cva déclarées", async () => {
+  const dir = await createProject(["core", "prettier", "tailwind-shadcn"]);
+  assert.deepEqual(readJsonIn(dir, PRETTIERRC), {
+    ...PRETTIER_BASE,
+    plugins: ["prettier-plugin-tailwindcss"],
+    tailwindStylesheet: "./src/app/globals.css",
+    tailwindFunctions: ["cn", "cva"],
+  });
+  assert.deepEqual((await applyFromLock(dir)).written, []);
+});
+
+test("Prettier : la feuille suit le projet dont app/ est à la racine", async () => {
+  // Projet existant sans base (adoption) : le fichier est proposé, pas écrit.
+  const dir = copyFixture("sample");
+  const mods = resolveSelection(loadModules(), ["core", "prettier", "tailwind-shadcn"]);
+  const report = await applyModules(dir, mods, VARS, { fresh: false, dryRun: false, install: false });
+  const { proposal } = report.missing.find(({ file }) => file === PRETTIERRC);
+  assert.equal(JSON.parse(fs.readFileSync(proposal, "utf8")).tailwindStylesheet, "./app/globals.css");
+});
+
+test("Prettier : sans tailwind-shadcn, ni plugin ni option Tailwind", async () => {
+  const dir = await createProject(["core", "prettier"]);
+  assert.deepEqual(readJsonIn(dir, PRETTIERRC), PRETTIER_BASE);
+});
+
 test("N1 : un fichier reformaté par le projet n'est pas un écart", async () => {
   const dir = await createProject();
   installFakePrettier(dir);
