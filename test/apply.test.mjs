@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
@@ -13,7 +13,7 @@ import {
   renderCi,
   resolveSelection,
 } from "../scripts/apply.mjs";
-import { KIT_ROOT, copyFixture } from "./helpers.mjs";
+import { FAKES, KIT_ROOT, copyFixture, tmpDir } from "./helpers.mjs";
 
 const render = (text, { vars = {}, selected = [] } = {}) => {
   const report = { unresolved: new Set() };
@@ -68,15 +68,18 @@ test("renderCi : Node lu dans package.json avec Volta, .nvmrc sinon", () => {
   assert.match(renderCi(selected, {}), /node-version-file: \.nvmrc/);
 });
 
-// Les trois variantes du ci.yml qui changent les permissions ou les jobs.
+// Les variantes du ci.yml qui changent les permissions ou les jobs.
 const CI_BASE = ["core", "github-ci", "prettier", "eslint", "vitest", "playwright", "a11y"];
+const VERCEL = { vercelCheckName: "Vercel - demo: ci" };
 const CI_VARIANTS = {
   standard: { selected: CI_BASE, vars: {} },
-  "vercel-check": {
-    selected: [...CI_BASE, "vercel-check"],
-    vars: { vercelCheckName: "Vercel - demo: ci" },
-  },
+  "vercel-check": { selected: [...CI_BASE, "vercel-check"], vars: VERCEL },
   "a11yGate=advisory": { selected: CI_BASE, vars: { a11yGate: "advisory" } },
+  // Deux jobs dans le workflow qui porte le statut Vercel (#77, ADR 0010).
+  "vercel-check + a11yGate=advisory": {
+    selected: [...CI_BASE, "vercel-check"],
+    vars: { ...VERCEL, a11yGate: "advisory" },
+  },
 };
 const renderVariant = ({ selected, vars }) => renderCi(new Set(selected), { volta: "1", ...vars });
 
@@ -96,10 +99,98 @@ for (const [name, variant] of Object.entries(CI_VARIANTS)) {
   });
 }
 
-test("renderCi : actions: read si et seulement si vercel-check est actif", () => {
+// Une étape d'un job rendu, repérée par son nom : texte, et script de `run: |` désindenté.
+function ciStep(jobText, name) {
+  const steps = jobText.split(/\n(?= {6}- )/).slice(1);
+  const index = steps.findIndex((s) => s.includes(`- name: ${name}\n`));
+  assert.notEqual(index, -1, `étape « ${name} » absente`);
+  const text = steps[index];
+  const run = text.split("run: |\n")[1] ?? "";
+  const script = run
+    .split("\n")
+    .filter((l) => l.startsWith(" ".repeat(10)))
+    .map((l) => l.slice(10))
+    .join("\n");
+  return { index, count: steps.length, text, script };
+}
+
+test("renderCi : statuses: write sur build ssi vercel-check, jamais actions: read", () => {
   for (const [name, variant] of Object.entries(CI_VARIANTS)) {
     const vercel = variant.selected.includes("vercel-check");
-    assert.equal(/^ {6}actions: read$/m.test(renderVariant(variant)), vercel, name);
+    const jobs = ciJobs(renderVariant(variant));
+    assert.equal(/^ {6}statuses: write$/m.test(jobs.build), vercel, name);
+    for (const [job, text] of Object.entries(jobs)) {
+      assert.doesNotMatch(text, /actions: read/, `${name} : job ${job}`);
+      if (job === "build") continue;
+      assert.doesNotMatch(text, /statuses|VERCEL_CHECK/, `${name} : job ${job}`);
+    }
+  }
+});
+
+// L'action Vercel jugeait le premier job du run, quel qu'il soit (#77) : le job build pose son
+// propre statut, en attente avant tout, puis à l'état du job en dernière étape, même après un
+// échec.
+test("renderCi : vercel-check, statut posé par le job build lui-même (ADR 0010)", () => {
+  for (const name of ["vercel-check", "vercel-check + a11yGate=advisory"]) {
+    const ci = renderVariant(CI_VARIANTS[name]);
+    assert.doesNotMatch(ci, /repository-dispatch/, name);
+    const { build } = ciJobs(ci);
+    assert.match(build, /^ {4}env:\n {6}VERCEL_CHECK: "Vercel - demo: ci"$/m, name);
+    const pending = ciStep(build, "Statut Vercel (en cours)");
+    assert.equal(pending.index, 0, `${name} : statut en attente avant toute autre étape`);
+    const result = ciStep(build, "Statut Vercel (résultat du job)");
+    assert.equal(result.index, result.count - 1, `${name} : résultat en dernière étape`);
+    assert.match(result.text, /^ {8}if: always\(\)$/m, name);
+    assert.match(result.text, /^ {10}JOB_STATUS: \$\{\{ job\.status \}\}$/m, name);
+    for (const step of [pending, result]) {
+      assert.match(step.text, /GH_TOKEN: \$\{\{ github\.token \}\}/, name);
+    }
+  }
+});
+
+// Lance un script d'étape rendu avec le faux gh et l'environnement d'un runner (VERCEL_CHECK lu
+// dans le job rendu) ; renvoie les appels reçus par gh.
+function runStatusScript(script, env) {
+  const dir = tmpDir();
+  const log = path.join(dir, "gh.log");
+  fs.writeFileSync(log, "");
+  const result = spawnSync("bash", ["-e", "-c", script], {
+    encoding: "utf8",
+    env: {
+      PATH: `${FAKES}${path.delimiter}${process.env.PATH}`,
+      FAKE_GH_LOG: log,
+      FAKE_GH_SCENARIO: JSON.stringify({ "api repos/demo/app/statuses/": {} }),
+      GITHUB_REPOSITORY: "demo/app",
+      GITHUB_SHA: "0123abc",
+      GITHUB_SERVER_URL: "https://github.com",
+      GITHUB_RUN_ID: "42",
+      GH_TOKEN: "jeton",
+      ...env,
+    },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  return fs.readFileSync(log, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+}
+
+const field = (call, key) => call.find((arg) => arg.startsWith(`${key}=`));
+
+test("renderCi : vercel-check, seul un job réussi pose success", () => {
+  const { build } = ciJobs(renderVariant(CI_VARIANTS["vercel-check + a11yGate=advisory"]));
+  const VERCEL_CHECK = build.match(/^ {6}VERCEL_CHECK: "(.*)"$/m)[1];
+  const [pending] = runStatusScript(ciStep(build, "Statut Vercel (en cours)").script, {
+    VERCEL_CHECK,
+  });
+  assert.equal(pending[1], "repos/demo/app/statuses/0123abc");
+  assert.equal(field(pending, "state"), "state=pending");
+  assert.equal(field(pending, "context"), "context=Vercel - demo: ci");
+  const result = ciStep(build, "Statut Vercel (résultat du job)").script;
+  const expected = { success: "success", failure: "failure", cancelled: "failure", "": "failure" };
+  for (const [jobStatus, state] of Object.entries(expected)) {
+    const calls = runStatusScript(result, { VERCEL_CHECK, JOB_STATUS: jobStatus });
+    assert.equal(calls.length, 1, `job.status=${jobStatus}`);
+    assert.equal(calls[0][1], "repos/demo/app/statuses/0123abc");
+    assert.equal(field(calls[0], "state"), `state=${state}`, `job.status=${jobStatus}`);
+    assert.equal(field(calls[0], "context"), "context=Vercel - demo: ci");
   }
 });
 

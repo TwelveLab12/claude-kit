@@ -236,7 +236,43 @@ function baselineSteps(selected) {
 // A green run takes 5 to 8 minutes (workout-manager, October 2026).
 const JOB_TIMEOUT_MINUTES = 15;
 
+// Deployment Check Vercel (ADR 0010): the build job sets its own commit status, pending first, then
+// from `job.status` in a last step that always runs. vercel/repository-dispatch/actions/status
+// reported the first job of the run, whatever its name (vercel/repository-dispatch#15): the
+// advisory a11y job could turn a failed build into a success.
+function vercelStatusSteps() {
+  const post = (state, description) => [
+    `          gh api "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" --silent \\`,
+    `            -f context="$VERCEL_CHECK" -f state=${state} -f description="${description}" \\`,
+    `            -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"`,
+  ];
+  return {
+    pending: [
+      "      # Statut Vercel « en cours » avant toute autre étape, état réel du job à la dernière.",
+      "      - name: Statut Vercel (en cours)",
+      "        env:",
+      "          GH_TOKEN: ${{ github.token }}",
+      "        run: |",
+      ...post("pending", "Job build en cours"),
+    ],
+    result: [
+      "      # Toujours exécutée : seul un job build réussi pose success, quels que soient les autres",
+      "      # jobs du workflow.",
+      "      - name: Statut Vercel (résultat du job)",
+      "        if: always()",
+      "        env:",
+      "          GH_TOKEN: ${{ github.token }}",
+      "          JOB_STATUS: ${{ job.status }}",
+      "        run: |",
+      "          state=failure",
+      '          if [ "$JOB_STATUS" = success ]; then state=success; fi',
+      ...post('"$state"', "Job build : $JOB_STATUS"),
+    ],
+  };
+}
+
 function renderCi(selected, vars) {
+  const vercel = selected.has("vercel-check") && vercelStatusSteps();
   const lines = [
     "# Géré par claude-kit : régénéré par /claude-kit:sync, ne pas éditer à la main.",
     "name: CI",
@@ -255,20 +291,19 @@ function renderCi(selected, vars) {
     "    permissions:",
     "      contents: read",
   ];
-  // The Vercel status action lists the run's jobs (actions: read) to report this one's outcome as
-  // a commit status (statuses: write).
-  if (selected.has("vercel-check")) lines.push("      actions: read", "      statuses: write");
-  lines.push("    steps:", "      - uses: actions/checkout@v7", "");
-  if (selected.has("vercel-check")) {
+  // The name is written once, at job level: Vercel matches the status by this exact context.
+  if (vercel) {
     lines.push(
-      "      # Reports this job's status to Vercel as a named Deployment Check",
-      "      # (Settings > Deployment Checks in the Vercel dashboard).",
-      "      - uses: vercel/repository-dispatch/actions/status@v1",
-      "        with:",
-      `          name: "${vars.vercelCheckName}"`,
-      "",
+      "      statuses: write",
+      "    # Deployment Check sélectionné dans Vercel (Settings > Deployment Checks) : ne pas changer ce",
+      "    # nom sans mettre Vercel à jour.",
+      "    env:",
+      `      VERCEL_CHECK: "${vars.vercelCheckName}"`,
     );
   }
+  lines.push("    steps:");
+  if (vercel) lines.push(...vercel.pending, "");
+  lines.push("      - uses: actions/checkout@v7", "");
   // One source of truth for the Node version: Volta's pin in package.json (setup-node reads
   // `volta.node`) for Volta users, .nvmrc otherwise.
   const setup = [
@@ -317,6 +352,7 @@ function renderCi(selected, vars) {
     } else lines.push("", `      - run: pnpm ${step}`);
   }
   if (selected.has("playwright")) lines.push(...playwrightReport("playwright-report"));
+  if (vercel) lines.push("", ...vercel.result);
 
   if (advisory) {
     lines.push(
