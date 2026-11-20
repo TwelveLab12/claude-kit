@@ -16,7 +16,7 @@ cibles, saisie redondante…) sont suivies par la checklist de `.claude/kit/a11y
 {{#if eslint}}| Lint `jsx-a11y` (preset `strict`) | pré-commit, `lint:ci` (bloquant) | ARIA invalide, `alt` manquant, gestionnaires sans clavier, liens vides, `tabindex` positif | le rendu : contraste, ordre de focus, landmarks calculés |
 {{/if}}{{#if vitest}}| axe-core dans Vitest (`*.a11y.test.tsx`) | `test` | structure et ARIA de chaque composant | contraste, mise en page, cibles (pas de moteur de rendu dans jsdom) |
 {{/if}}{{#if vitest+tailwind-shadcn}}| Contraste des tokens (`design-tokens.a11y.test.ts`) | `test` | chaque paire de couleurs du design system, clair et sombre | l'opacité ajoutée par une classe, les couleurs écrites en dur |
-{{/if}}{{#if playwright}}| axe-core + Playwright (`e2e/a11y.spec.ts`) | `test:e2e`, CI | WCAG 2.2 AA et bonnes pratiques sur le rendu, reflow 320 px, focus visible, titres, `lang`, 404 | le texte des SVG, le lecteur d'écran, la pertinence des textes, les pages derrière une connexion |
+{{/if}}{{#if playwright}}| axe-core + Playwright (`e2e/a11y.spec.ts`) | `test:e2e`, CI | WCAG 2.2 AA et bonnes pratiques sur le rendu, reflow 320 px, focus visible (arrêts de tabulation, cible focalisée par script), titres, `lang`, 404 | le texte des SVG, le lecteur d'écran, la pertinence des textes, les pages derrière une connexion |
 {{/if}}
 
 Pages couvertes par les tests e2e : celles de `e2e/routes.ts`, plus la 404. _À compléter : pages
@@ -57,8 +57,8 @@ composant interactif. Outils gratuits : [NVDA](https://www.nvaccess.org/) (Windo
 Tab, Maj+Tab, Entrée, Espace, Échap, flèches.
 
 - Le premier Tab affiche le lien d'évitement ; Entrée amène dans le contenu principal.
-- Le focus est visible à chaque étape et jamais caché derrière un en-tête collant (Safari en
-  priorité).
+- Le focus est visible à chaque étape, y compris quand un script le déplace (titre, message), et
+  jamais caché derrière un en-tête collant (Safari en priorité).
 - L'ordre de tabulation suit l'ordre visuel ; aucun piège.
 - Menus, modales, onglets : ouverture au clavier, Échap ferme **et rend le focus** au déclencheur.
 - Zones défilantes (tableaux, code, schémas) : Tab les atteint, les flèches les font défiler.
