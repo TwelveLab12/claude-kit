@@ -2,6 +2,39 @@
 
 Chaque version est lue par `/claude-kit:sync` pour expliquer à un projet ce qui change.
 
+## 0.14.0 — 2026-11-20
+
+**Action possible : la CI e2e peut passer au rouge après le sync.** Avec `a11y`, `tailwind-shadcn`
+et `playwright`, le sync met à jour le bloc claude-kit de `src/app/globals.css`, `e2e/a11y.spec.ts`
+et `docs/accessibility.md` s'ils n'ont pas été modifiés (sinon il les propose), et la règle
+`.claude/kit/a11y.md`. Le nouveau test de focus échoue dans deux cas :
+
+- le `h1` d'une route a `tabindex="-1"` et pas d'indicateur à 3:1, souvent à cause d'un
+  `outline-none` (cas du `PageHeader` de workout-manager sur `/routines` et `/exercices`). Retirer
+  `outline-none` suffit : l'anneau global couvre maintenant ce titre ;
+- le bloc de `globals.css` a été modifié par le projet (signalé par le sync) : y ajouter à la main
+  `[tabindex="-1"]` au sélecteur.
+
+### Anneau de focus : cibles focalisées par script (#59)
+
+- L'anneau global couvrait `a, button, input, textarea, select, summary, [tabindex="0"]`. Un
+  élément que seul un script focalise (`tabindex="-1"` : titre après un lien d'ancre ou une action,
+  message de statut) gardait le contour par défaut du navigateur, recoloré par shadcn
+  (`outline-ring/50`) : environ 2,2:1, sous le 3:1 de WCAG 1.4.11 / RGAA 10.7. La règle a11y demande
+  pourtant de rendre le focus à un titre. Relevé dans workout-manager#168.
+- Le sélecteur du bloc couvre `[tabindex="-1"]`, toujours dans `:where()`. Un `outline-hidden` ou
+  un `outline-none` posé par un composant l'emporte encore (couche `utilities`) : les menus et
+  popups de shadcn ne changent pas.
+- Chromium applique `:focus-visible` à tout focus posé par script, même après un clic. Le contour
+  pâle qui apparaissait déjà dans ce cas devient l'anneau opaque.
+- `e2e/a11y.spec.ts` : nouveau test par route. Après un Tab, il focalise par script le `h1` s'il a
+  `tabindex="-1"`, sinon un élément sonde ajouté en tête de `<main>`, et mesure l'indicateur comme
+  pour les arrêts de tabulation. Le test des arrêts de tabulation n'avait jamais vu ces cibles.
+- Règle a11y : la liste des éléments couverts est complétée (`summary` y manquait), et
+  « jamais `outline-none` » vaut aussi pour une cible `tabIndex={-1}`.
+- Canary : sans `[tabindex="-1"]` dans le bloc, le test doit échouer sur l'élément sonde et sur un
+  `h1` en `tabindex="-1"`.
+
 ## 0.13.0 — 2026-11-19
 
 **Action manuelle avec `tailwind-shadcn` : reformater le projet.** Le sync réécrit
