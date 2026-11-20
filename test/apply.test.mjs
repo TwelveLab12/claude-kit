@@ -494,7 +494,8 @@ test("bloc : intact, il suit le kit (F3, module ajouté) ; modifié par le proje
 
 // Projet shadcn minimal (globals.css du projet, sans create-next-app) équipé par `create`.
 const GLOBALS = "src/app/globals.css";
-const FOCUS = /:focus-visible \{\s*outline: 3px solid var\(--ring\);/;
+// L'anneau couvre aussi les cibles focalisées par script (#59).
+const FOCUS = /:where\([^)]*\[tabindex="-1"\][^)]*\):focus-visible \{\s*outline: 3px solid var\(--ring\);/;
 async function createShadcnProject(globals = '@import "tailwindcss";\n:root { --ring: oklch(0.556 0 0); }\n') {
   const dir = copyFixture("sample");
   fs.rmSync(path.join(dir, ".claude"), { recursive: true });
