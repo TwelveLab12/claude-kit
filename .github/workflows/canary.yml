@@ -180,6 +180,90 @@ jobs:
           cp "$RUNNER_TEMP/globals.css" src/app/globals.css
           cp "$RUNNER_TEMP/routes.ts" e2e/routes.ts
 
+      # Une page peut remplacer son <main> ou le texte de son h1 une fois chargée (données lues côté
+      # client, comme dans une application offline-first) : la cible du test de focus par script
+      # change pendant la mesure, qui porte alors sur un élément détaché ou sur un autre rendu (#84).
+      # Le test recommence la mesure. Pour tomber à coup sûr pendant la mesure, le changement est
+      # déclenché par le test lui-même : ajout de la sonde dans le <main> (première page), première
+      # perte de focus du titre, entre les deux captures (seconde). Un délai fixe tomberait avant ou
+      # après selon la machine. Sans nouvel essai (budget à 0), le test doit échouer sur les deux
+      # pages, sinon le scénario ne teste plus rien ; avec, il doit passer.
+      - name: Le test de focus par script mesure une cible stable
+        working-directory: ${{ runner.temp }}/canary
+        env:
+          CI: "true"
+        run: |
+          cp e2e/a11y.spec.ts "$RUNNER_TEMP/a11y.spec.ts"
+          cp e2e/routes.ts "$RUNNER_TEMP/routes.ts"
+          mkdir -p src/app/canary-replaced-main src/app/canary-replaced-heading
+          cat > src/app/canary-replaced-main/page.tsx <<'EOF'
+          "use client";
+
+          import { useState } from "react";
+
+          export default function Page() {
+            const [loaded, setLoaded] = useState(false);
+            if (loaded) {
+              return (
+                <main key="loaded" className="p-8">
+                  <h1>Contenu chargé</h1>
+                </main>
+              );
+            }
+            return (
+              <main
+                key="loading"
+                className="p-8"
+                ref={(node) => {
+                  if (!node) return;
+                  const observer = new MutationObserver(() => setLoaded(true));
+                  observer.observe(node, { childList: true });
+                  return () => observer.disconnect();
+                }}
+              >
+                <h1>Chargement</h1>
+              </main>
+            );
+          }
+          EOF
+          cat > src/app/canary-replaced-heading/page.tsx <<'EOF'
+          "use client";
+
+          import { useState } from "react";
+
+          export default function Page() {
+            const [loaded, setLoaded] = useState(false);
+            return (
+              <main className="p-8">
+                <h1 tabIndex={-1} onBlur={() => setLoaded(true)}>
+                  {loaded ? "Séance du jour" : "Chargement"}
+                </h1>
+              </main>
+            );
+          }
+          EOF
+          sed -i 's|\["/"\]|["/", "/canary-replaced-main", "/canary-replaced-heading"]|' e2e/routes.ts
+          grep -q '"/canary-replaced-heading"' e2e/routes.ts || { echo "Routes non ajoutées"; exit 1; }
+          sed -i 's|^const SCRIPT_FOCUS_TIMEOUT = 10_000;$|const SCRIPT_FOCUS_TIMEOUT = 0;|' e2e/a11y.spec.ts
+          grep -q '^const SCRIPT_FOCUS_TIMEOUT = 0;$' e2e/a11y.spec.ts || { echo "Budget non mis à 0"; exit 1; }
+          pnpm build
+          if pnpm exec playwright test -g "canary-replaced.*script-focused" --retries=0 --reporter=line > "$RUNNER_TEMP/replaced.log" 2>&1; then
+            cat "$RUNNER_TEMP/replaced.log"
+            echo "Sans nouvel essai, le test passe : les pages ne changent plus leur cible pendant la mesure (#84)"
+            exit 1
+          fi
+          grep -q "script-focused target P:claude-kit focus probe: replaced or changed" "$RUNNER_TEMP/replaced.log" \
+            && grep -q "script-focused target H1:Chargement: replaced or changed" "$RUNNER_TEMP/replaced.log" \
+            || { cat "$RUNNER_TEMP/replaced.log"; exit 1; }
+          cp "$RUNNER_TEMP/a11y.spec.ts" e2e/a11y.spec.ts
+          if ! pnpm exec playwright test -g "canary-replaced.*script-focused" --retries=0 --repeat-each=3 --reporter=line > "$RUNNER_TEMP/replaced.log" 2>&1; then
+            cat "$RUNNER_TEMP/replaced.log"
+            echo "Le test de focus par script échoue quand la page change sa cible pendant la mesure (#84)"
+            exit 1
+          fi
+          rm -r src/app/canary-replaced-main src/app/canary-replaced-heading
+          cp "$RUNNER_TEMP/routes.ts" e2e/routes.ts
+
       # `next dev` écrit dans .next/dev/types des types qui restent après l'arrêt du serveur et
       # peuvent être faux : route supprimée depuis (vercel/next.js#96620), imports inutilisés que
       # noUnusedLocals refuse depuis Next 16.4 (vercel/next.js#99919). Le tsconfig du module core
