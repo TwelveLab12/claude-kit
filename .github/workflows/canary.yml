@@ -138,6 +138,48 @@ jobs:
           rm -r src/app/canary-rounded
           cp "$RUNNER_TEMP/routes.ts" e2e/routes.ts
 
+      # Une cible focalisée par script (tabindex="-1") n'est jamais un arrêt de tabulation (#59) : le
+      # test la focalise lui-même, le h1 de la page s'il est tabindex="-1", sinon un élément sonde.
+      # Sans [tabindex="-1"] dans le bloc claude-kit, l'un et l'autre n'ont que le contour par défaut
+      # recoloré par shadcn à 50 %, et le test doit échouer sur les deux.
+      - name: Le test de focus détecte une cible focalisée par script sans anneau
+        working-directory: ${{ runner.temp }}/canary
+        env:
+          CI: "true"
+        run: |
+          cp src/app/globals.css "$RUNNER_TEMP/globals.css"
+          cp e2e/routes.ts "$RUNNER_TEMP/routes.ts"
+          # Le commentaire du bloc cite aussi [tabindex="-1"] : seul le sélecteur est visé.
+          perl -0pi -e 's/,\s*\[tabindex="-1"\](\s*\):focus-visible)/$1/' src/app/globals.css
+          if grep -qzP '\[tabindex="-1"\]\s*\):focus-visible' src/app/globals.css \
+            || ! grep -qzP '\[tabindex="0"\]\s*\):focus-visible' src/app/globals.css; then
+            echo "Sélecteur non retiré"; exit 1
+          fi
+          mkdir -p src/app/canary-script-focus
+          cat > src/app/canary-script-focus/page.tsx <<'EOF'
+          export default function Page() {
+            return (
+              <main className="p-8">
+                <h1 tabIndex={-1}>Titre focalisable</h1>
+              </main>
+            );
+          }
+          EOF
+          sed -i 's|\["/"\]|["/", "/canary-script-focus"]|' e2e/routes.ts
+          grep -q '"/canary-script-focus"' e2e/routes.ts || { echo "Route non ajoutée"; exit 1; }
+          pnpm build
+          if pnpm exec playwright test -g "script-focused" --retries=0 --reporter=line > "$RUNNER_TEMP/script-focus.log" 2>&1; then
+            cat "$RUNNER_TEMP/script-focus.log"
+            echo "Le test de focus passe alors que l'anneau global ne couvre plus [tabindex=\"-1\"]"
+            exit 1
+          fi
+          grep -q "script-focused target P:claude-kit focus probe" "$RUNNER_TEMP/script-focus.log" \
+            && grep -q "script-focused target H1:Titre focalisable" "$RUNNER_TEMP/script-focus.log" \
+            || { cat "$RUNNER_TEMP/script-focus.log"; exit 1; }
+          rm -r src/app/canary-script-focus
+          cp "$RUNNER_TEMP/globals.css" src/app/globals.css
+          cp "$RUNNER_TEMP/routes.ts" e2e/routes.ts
+
       # `next dev` écrit dans .next/dev/types des types qui restent après l'arrêt du serveur et
       # peuvent être faux : route supprimée depuis (vercel/next.js#96620), imports inutilisés que
       # noUnusedLocals refuse depuis Next 16.4 (vercel/next.js#99919). Le tsconfig du module core
