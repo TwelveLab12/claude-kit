@@ -2,6 +2,28 @@
 
 Chaque version est lue par `/claude-kit:sync` pour expliquer à un projet ce qui change.
 
+## 0.14.1 — 2026-11-20
+
+**Aucune action manuelle.** Avec `a11y` et `playwright`, le sync met à jour `e2e/a11y.spec.ts`
+s'il n'a pas été modifié (sinon il le propose).
+
+### Test de focus par script : cible changée pendant la mesure (#84)
+
+- Le test « a script-focused target shows a contrasted indicator » (0.14.0, #59) ajoutait sa sonde
+  en tête de `<main>` juste après le chargement. Une page qui lit ses données côté client
+  (application offline-first) remplace ensuite son `<main>` : la sonde partait avec, et le test
+  mesurait un élément détaché (`matches :focus-visible` faux, ou `0 px at 3:1`). Relevé sur la
+  route `/` de workout-manager : 5 échecs sur 5 sans réessai (workout-manager#232). Les réessais
+  de la CI l'auraient rendu vert sans que personne ne le voie.
+- Après la mesure, le test relit la cible. Si elle a quitté la page, ou si son texte ou sa position
+  ont changé (titre mis à jour avec les données), la mesure recommence, pendant 10 s au plus.
+  Au-delà, le test échoue avec `replaced or changed by the page while measured`.
+- Un vrai défaut (pas d'anneau, `outline-none`) échoue toujours dès la première mesure : seule une
+  cible changée relance la mesure.
+- Canary : deux pages changent leur cible pendant la mesure (`<main>` remplacé, texte du `h1`
+  changé). Le test doit y passer sans réessai, et échouer quand le budget est à 0 : sinon le
+  scénario ne teste plus rien.
+
 ## 0.14.0 — 2026-11-20
 
 **Action possible : la CI e2e peut passer au rouge après le sync.** Avec `a11y`, `tailwind-shadcn`
