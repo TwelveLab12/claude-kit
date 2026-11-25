@@ -2,6 +2,37 @@
 
 Chaque version est lue par `/claude-kit:sync` pour expliquer à un projet ce qui change.
 
+## 0.15.0 — 2026-11-25
+
+**Aucune action manuelle dans le projet.** Le sync met à jour `.claude/kit/core.md`,
+`.claude/kit/playwright.md` et `.github/dependabot.yml` s'ils n'ont pas été modifiés. Il signale
+maintenant un Node local différent de celui du projet (`nodeRuntime`) : c'est le poste qu'il faut
+corriger, pas le projet.
+
+### Version de Node locale contrôlée par sync et audit (#35)
+
+- Volta ne lit pas `.nvmrc` : workout-manager et dnd-character-manager, en 24 dans leur `.nvmrc` et
+  leur CI, tournaient en local sur la version par défaut de Volta. La baseline locale pouvait donc
+  passer sur une autre version de Node que la CI.
+- Hors création, le rapport d'`apply` porte `nodeRuntime` (`source`, `nodeMajor`, `running`, `ok`) :
+  la majeure du Node qui exécute `apply` comparée à celle du projet (`.nvmrc`, ou `volta.node` d'un
+  lock en `run=volta`). Sync et audit, lancés depuis la racine du projet, signalent l'écart. Ce
+  n'est jamais un échec : le canary tourne en `lts/*` (Node 26) sur des projets générés en 24,
+  jusqu'à #27.
+- README et règle `core` : le gestionnaire de Node du poste doit lire `.nvmrc` (mise avec la lecture
+  de `.nvmrc` activée, nvm, fnm ; pas Volta).
+
+### `run=volta` déprécié
+
+- Volta n'est plus maintenu (annonce de son README depuis le 14/11/2025). Le scaffold ne propose
+  plus de lanceur. Un lock en `run=volta` reste géré (épinglage dans `package.json`, CI qui le lit)
+  et le rapport le signale (`deprecated: ["run=volta"]`).
+- Les textes qui citaient Volta comme l'outil du poste sont généralisés : README, skills scaffold,
+  sync et audit, règle `playwright` (`sudo` ne voit pas le Node de l'utilisateur, quel que soit son
+  gestionnaire), commentaire de `dependabot.yml`.
+- Tests rapides : les instantanés du `ci.yml` sont rendus dans le mode par défaut (`.nvmrc`), le mode
+  Volta garde son propre test.
+
 ## 0.14.1 — 2026-11-20
 
 **Aucune action manuelle.** Avec `a11y` et `playwright`, le sync met à jour `e2e/a11y.spec.ts`
