@@ -51,9 +51,14 @@ argument-hint: "[+module] [-module]"
    - `installed` : dépendances manquantes qui seront ajoutées ;
    - `nodeTypes` : si `ok` vaut `false`, `@types/node` n'est pas à la majeure de Node (`nodeMajor`,
      lue dans `source`). Le sync ne le modifie pas : proposer
-     `pnpm add -D @types/node@^<nodeMajor>` (avec Volta : `volta run pnpm add …`). Si `ok` vaut
-     `null`, la majeure de Node est indéterminée (alias comme `lts/*` dans `.nvmrc`) : le dire, sans
-     proposer de version.
+     `pnpm add -D @types/node@^<nodeMajor>`. Si `ok` vaut `null`, la majeure de Node est
+     indéterminée (alias comme `lts/*` dans `.nvmrc`) : le dire, sans proposer de version ;
+   - `nodeRuntime` : si `ok` vaut `false`, le Node qui exécute le sync (`running`) n'est pas celui
+     du projet (`nodeMajor`, lu dans `source`) : la baseline locale ne tournerait pas sur la version
+     de la CI. Le dire : le gestionnaire de Node du poste doit lire `.nvmrc` (README du kit). Ne rien
+     modifier dans le projet. Le contrôle ne vaut que lancé depuis la racine du projet (`apply .`) ;
+   - `deprecated` : options du lock dépréciées. `run=volta` : Volta n'est plus maintenu, le kit gère
+     encore ce mode mais ne le propose plus. Le signaler, sans rien changer.
 4. **Appliquer** après accord : même commande sans `--dry-run`, puis reprendre à la main ce qui a
    été retenu dans `drifts`, `proposals`, `conflicts` et `missing`.
 5. **Vérifier** : baseline avant la PR (`.claude/kit/core.md`, tel que le sync vient de l'écrire).

@@ -30,8 +30,8 @@ doit renvoyer `written: []` (idempotence). C'est exactement ce que fait le canar
 second job fait de même pour une montée de version : projet généré avec le tag précédent
 (`git worktree add <tmp> v<x.y.z>`), synchronisé avec la branche, puis baseline et second sync.
 
-Environnement : tout l'outillage (git, gh, node, pnpm via Volta) tourne dans WSL, et les repos sont
-dans le système de fichiers Linux (`~/Projects`), pas sous `/mnt/c`. Le kit doit rester portable
+Environnement : tout l'outillage (git, gh, node et pnpm via mise, qui lit `.nvmrc`) tourne dans
+WSL, et les repos sont dans le système de fichiers Linux (`~/Projects`), pas sous `/mnt/c`. Le kit doit rester portable
 (scripts Node sans dépendance, `gh` pris dans le PATH) : le canary tourne sous Linux.
 
 ## Conventions
