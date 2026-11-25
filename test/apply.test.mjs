@@ -9,6 +9,7 @@ import {
   loadModules,
   loadProjectPrettier,
   makeRenderer,
+  nodeRuntimeStatus,
   nodeTypesStatus,
   renderCi,
   resolveSelection,
@@ -81,7 +82,8 @@ const CI_VARIANTS = {
     vars: { ...VERCEL, a11yGate: "advisory" },
   },
 };
-const renderVariant = ({ selected, vars }) => renderCi(new Set(selected), { volta: "1", ...vars });
+// Le mode par défaut (.nvmrc) : `run=volta` est déprécié et garde son propre test ci-dessus.
+const renderVariant = ({ selected, vars }) => renderCi(new Set(selected), vars);
 
 // Découpe le ci.yml en jobs : { nom: texte du job }.
 const ciJobs = (ci) =>
@@ -665,6 +667,51 @@ test("nodeTypesStatus : un alias de version de Node donne ok: null, jamais la ve
   fs.rmSync(path.join(dir, ".nvmrc"));
   const latest = { devDependencies: { "@types/node": "latest" } };
   assert.equal(nodeTypesStatus(latest, dir, { nodeVersion: "lts/*" }).ok, null);
+});
+
+test("nodeRuntimeStatus : le Node qui exécute est comparé à .nvmrc, ou à volta.node", () => {
+  const dir = copyFixture("sample");
+  // Rien de déclaré : aucune comparaison, pas même avec le défaut du kit.
+  assert.equal(nodeRuntimeStatus({}, dir, "26.13.1"), null);
+  fs.writeFileSync(path.join(dir, ".nvmrc"), "24\n");
+  const gap = nodeRuntimeStatus({}, dir, "26.13.1");
+  assert.deepEqual(gap, { source: ".nvmrc", nodeMajor: "24", running: "26", ok: false });
+  assert.equal(nodeRuntimeStatus({}, dir, "v24.22.3").ok, true);
+  const volta = nodeRuntimeStatus({ volta: { node: "22.1.0" } }, dir, "24.22.3");
+  assert.deepEqual([volta.source, volta.nodeMajor, volta.ok], ["volta.node", "22", false]);
+  fs.writeFileSync(path.join(dir, ".nvmrc"), "lts/*\n");
+  assert.equal(nodeRuntimeStatus({}, dir, "26.13.1").ok, null);
+});
+
+// Le Node des tests varie (lts/* en CI) : les majeures attendues partent de celui qui tourne.
+test("sync : le Node qui exécute le sync est comparé à .nvmrc, l'écart signalé sans rien écrire", async () => {
+  const running = process.versions.node.split(".")[0];
+  const other = String(Number(running) + 1);
+  const dir = copyFixture("sample");
+  const mods = resolveSelection(loadModules(), ["core"]);
+  const options = { dryRun: false, install: false };
+  const vars = { nodeVersion: other };
+  const created = await applyModules(dir, mods, vars, { fresh: true, ...options });
+  assert.equal(created.nodeRuntime, undefined);
+  const synced = await applyModules(dir, mods, vars, { fresh: false, ...options });
+  assert.deepEqual(synced.nodeRuntime, { source: ".nvmrc", nodeMajor: other, running, ok: false });
+  assert.ok(!synced.written.includes(".nvmrc"));
+  fs.writeFileSync(path.join(dir, ".nvmrc"), `${running}\n`);
+  const aligned = await applyModules(dir, mods, vars, { fresh: false, ...options });
+  assert.equal(aligned.nodeRuntime.ok, true);
+});
+
+test("run=volta : déprécié, signalé par le rapport, toujours géré", async () => {
+  for (const [run, deprecated] of [
+    ["volta", ["run=volta"]],
+    ["pnpm", undefined],
+  ]) {
+    const dir = copyFixture("sample");
+    const mods = resolveSelection(loadModules(), ["core"]);
+    const options = { fresh: false, dryRun: true, install: false };
+    const report = await applyModules(dir, mods, { run }, options);
+    assert.deepEqual(report.deprecated, deprecated);
+  }
 });
 
 // La majeure de Volta (22) diffère du défaut du kit (24) : le test prouve qu'elle est lue.
