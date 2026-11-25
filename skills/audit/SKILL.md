@@ -15,10 +15,12 @@ description: Vérifie la fraîcheur des standards — dans un projet, l'écart a
    que le projet les a modifiés (`proposals`, `conflicts`), éléments absents d'un projet sans base
    (`missing`). `written` = mises à jour du kit en attente d'un sync. Lecture des catégories :
    `/claude-kit:sync`, étape 3.
-3. Types Node : `nodeTypes` du dry-run. `ok: false` = la majeure de `@types/node` ne suit pas celle
-   de Node (`nodeMajor`, lue dans `source`) : proposer `pnpm add -D @types/node@^<nodeMajor>` (avec
-   Volta : `volta run pnpm add …`). `ok: null` = majeure de Node indéterminée (alias comme `lts/*`
-   dans `.nvmrc`) : le dire, sans proposer de version.
+3. Node : `nodeTypes` du dry-run. `ok: false` = la majeure de `@types/node` ne suit pas celle
+   de Node (`nodeMajor`, lue dans `source`) : proposer `pnpm add -D @types/node@^<nodeMajor>`.
+   `ok: null` = majeure de Node indéterminée (alias comme `lts/*` dans `.nvmrc`) : le dire, sans
+   proposer de version. `nodeRuntime` du même dry-run, `ok: false` = le Node local (`running`)
+   n'est pas celui du projet : le gestionnaire de Node du poste doit lire `.nvmrc` (README du kit).
+   `deprecated` : options du lock dépréciées (`run=volta`), à signaler.
 4. Dépendances : `pnpm outdated`. Distinguer patch/minor (Dependabot s'en charge) et **majeures**.
    Une majeure de `@types/node` plus récente que celle de Node n'est pas un retard : ne pas la
    proposer (étape 3).

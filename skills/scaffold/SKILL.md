@@ -37,11 +37,10 @@ du catalogue marqués « (Recommended) » en premier, `description` = une phrase
 4. GitHub : `github-ci`, `dependabot`, `github-workflow`, `vercel-check`
 
 **Appel 2 : options** (ne poser que ce qui s'applique)
-1. Lanceur : `pnpm` (Recommended) ou `volta` (commandes `volta run pnpm …`, alias shell `vrp`)
-2. Board (si `github-workflow`) : « Nouveau board dédié à ce dépôt (Recommended) » (convention :
+1. Board (si `github-workflow`) : « Nouveau board dédié à ce dépôt (Recommended) » (convention :
    un board par dépôt), « Board existant » (en adoption, s'il suit déjà ce repo :
    `gh project list --owner <owner>`), ou « Pas de board pour l'instant »
-3. **Création avec `tailwind-shadcn`** : bibliothèque de primitives sous les composants shadcn,
+2. **Création avec `tailwind-shadcn`** : bibliothèque de primitives sous les composants shadcn,
    « Base UI (Recommended) » (défaut actuel de shadcn, `--var uiBase=base`) ou « Radix »
    (`--var uiBase=radix`, ex. pour partager des composants avec un projet existant sur Radix). Les
    extras `docs-adr` et `claude-settings` sont alors inclus d'office (le dire dans le récapitulatif,
@@ -49,7 +48,7 @@ du catalogue marqués « (Recommended) » en premier, `description` = une phrase
    **Sinon** (adoption, ou pas de shadcn) : extras `docs-adr`, `claude-settings` (cochés par
    défaut). En adoption, la bibliothèque n'est **jamais** demandée : le script détecte celle qui
    est installée et la conserve ; ne pas proposer de migration.
-4. Dépôt GitHub (création uniquement) : « Créer le repo maintenant (privé) », « … (public) »,
+3. Dépôt GitHub (création uniquement) : « Créer le repo maintenant (privé) », « … (public) »,
    « Plus tard »
 
 `core` est toujours inclus ; les dépendances (`requires`) sont ajoutées automatiquement par le
@@ -58,8 +57,9 @@ script, inutile de les demander.
 ## 3. Construire la commande
 
 - Variables (`--var clé=valeur`) : `owner` (compte GitHub : `gh api user --jq .login`),
-  `boardNumber`, `run` (`pnpm` ou `volta`). Les statuts par défaut du kit sont « Backlog / À faire /
-  En cours / Terminé », ceux que crée `board.mjs init`. Pour un board existant aux colonnes
+  `boardNumber`. Ne pas passer `run` : `run=volta` est déprécié (Volta n'est plus maintenu), le kit
+  ne le gère plus que pour les locks existants. Les statuts par défaut du kit sont « Backlog /
+  À faire / En cours / Terminé », ceux que crée `board.mjs init`. Pour un board existant aux colonnes
   différentes, passer `statusBacklog`/`statusTodo`/`statusDoing`/`statusDone` d'après
   `gh project field-list <n> --owner <owner> --format json`.
 - Un nouveau board n'a pas encore de numéro : le créer à l'étape 6, puis relancer

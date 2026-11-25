@@ -27,6 +27,12 @@ encore les plugins dans ses sessions WSL, mais ces sessions chargent le plugin i
 distribution. Le kit ne s'ajoute pas comme plugin du compte claude.ai (« Personnalisation » de
 l'app) : il serait chargé en double.
 
+Le gestionnaire de Node du poste doit lire `.nvmrc`, la version que la CI des projets exécute :
+mise (avec `idiomatic_version_file_enable_tools = ["node"]`), nvm ou fnm le font. Volta ne le lit
+pas et n'est plus maintenu : la baseline locale tournerait sur une autre version que la CI. Lancés
+depuis la racine du projet, sync et audit comparent la majeure du Node qui les exécute à celle du
+projet et signalent l'écart (`nodeRuntime` du rapport d'`apply`).
+
 En local, pour développer le kit : `claude plugin marketplace add <chemin absolu du clone>` (sous
 WSL, par exemple `/home/<utilisateur>/Projects/claude-kit`).
 Les projets équipés du module `claude-settings` déclarent aussi la marketplace et le plugin dans
@@ -78,7 +84,7 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
 
 | Module | Contenu |
 | --- | --- |
-| `core` (toujours) | tsconfig strict, version de Node (épinglage Volta dans `package.json` avec `run=volta`, sinon `.nvmrc`), lue aussi par la CI, `.gitattributes` LF, `typecheck` avec `next typegen` |
+| `core` (toujours) | tsconfig strict, version de Node dans `.nvmrc` (épinglage Volta dans `package.json` pour un lock en `run=volta`, déprécié), lue aussi par la CI, `.gitattributes` LF, `typecheck` avec `next typegen` |
 | `tailwind-shadcn` | Tailwind v4 + shadcn/ui. Nouveau projet : **Base UI** par défaut (défaut de shadcn) ou Radix (`uiBase`) ; projet existant : la bibliothèque installée est détectée et conservée |
 | `eslint` | flat config Next + convention `_` |
 | `prettier` | printWidth 100, plugin Tailwind, `format:check` en CI |
@@ -154,9 +160,8 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
   activer dans *Workflows* du board (la commande en donne la liste : item ajouté → « À faire », PR
   liée → « En cours », PR mergée et item fermé → « Terminé », auto-close, sous-issues).
 - Sous Linux/WSL, bibliothèques système de Chromium pour Playwright, une fois par machine :
-  `sudo apt-get install -y $(pnpm exec playwright install-deps --dry-run chromium 2>/dev/null | sed -n 's/^  //p')`
-  (avec Volta : `volta run pnpm exec …`). Seul `apt` passe en root : un shim Volta ne fonctionne
-  pas sous `sudo`.
+  `sudo apt-get install -y $(pnpm exec playwright install-deps --dry-run chromium 2>/dev/null | sed -n 's/^  //p')`.
+  Seul `apt` passe en root : `sudo` ne voit pas le Node de l'utilisateur (mise, nvm, fnm).
 - Dans ce repo : `main` est protégée, avec les checks `test` et `release-check` obligatoires
   (ADR 0005), administrateurs compris ; ni push forcé ni suppression.
 
