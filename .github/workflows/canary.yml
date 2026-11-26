@@ -44,13 +44,22 @@ jobs:
           node scripts/apply.mjs create "$RUNNER_TEMP/canary" --modules all \
             --var owner=TwelveLab12 --var boardNumber=1
 
-      - name: "@types/node à la majeure de Node (.nvmrc)"
+      # Le projet est vérifié sur le Node que le kit lui écrit, pas sur lts/* (ADR 0011).
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ${{ runner.temp }}/canary/.nvmrc
+
+      - name: "Node, engines.node et @types/node à la majeure de .nvmrc"
         working-directory: ${{ runner.temp }}/canary
         run: |
           node_major=$(grep -oE '[0-9]+' .nvmrc | head -1)
+          running_major=$(node -p 'process.versions.node.split(".")[0]')
+          engines=$(node -p "require('./package.json').engines.node")
           types_major=$(node -p "require('./package.json').devDependencies['@types/node'].match(/\\d+/)[0]")
-          echo "Node $node_major, @types/node $types_major"
-          test "$node_major" = "$types_major"
+          echo ".nvmrc $node_major, Node $running_major, engines.node $engines, @types/node $types_major"
+          test "$running_major" = "$node_major"
+          test "$engines" = "$node_major.x"
+          test "$types_major" = "$node_major"
 
       # Baseline avant la PR (.claude/kit/core.md) : test:e2e:ci fait le build et les e2e.
       - name: Baseline du projet généré
@@ -379,6 +388,11 @@ jobs:
           git worktree add --detach "$RUNNER_TEMP/kit-previous" "$TAG"
           node "$RUNNER_TEMP/kit-previous/scripts/apply.mjs" create "$RUNNER_TEMP/upgrade" --modules all \
             --var owner=TwelveLab12 --var boardNumber=1 --var a11yGate=advisory
+
+      # Le Node de son .nvmrc, qu'un sync ne change pas : la majeure reste celle du lock (ADR 0011).
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: ${{ runner.temp }}/upgrade/.nvmrc
 
       # `pipefail` : sans lui, un sync en échec passerait derrière `tee`. Rapport gardé hors du
       # projet : `format:check` le lirait.
