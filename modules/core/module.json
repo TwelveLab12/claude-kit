@@ -1,7 +1,7 @@
 {
   "id": "core",
   "title": "Socle Next.js + TypeScript strict",
-  "description": "tsconfig strict, version de Node dans .nvmrc (épinglée par Volta dans package.json pour un lock en run=volta, déprécié), .gitattributes (LF), scripts typegen/typecheck.",
+  "description": "tsconfig strict, version de Node dans .nvmrc (épinglée par Volta dans package.json pour un lock en run=volta, déprécié) et sa majeure dans engines.node pour Vercel, .gitattributes (LF), scripts typegen/typecheck.",
   "group": "socle",
   "required": true,
   "packageJson": { "type": "module" },

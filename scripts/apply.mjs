@@ -154,20 +154,19 @@ function makeRenderer(ctx) {
 const majorOf = (spec) => /\d+/.exec(String(spec ?? ""))?.[0] ?? null;
 
 // The Node version the project declares, the one its CI runs: Volta's pin for a `run=volta` lock
-// (deprecated), else .nvmrc. Null when it declares none.
-function declaredNode(pkg, target) {
+// (deprecated), else .nvmrc (its content, null when absent). Null when it declares none.
+function declaredNode(pkg, nvmrc) {
   if (pkg.volta?.node) return ["volta.node", pkg.volta.node];
-  const nvmrc = readIfExists(path.join(target, ".nvmrc"));
   return nvmrc === null ? null : [".nvmrc", nvmrc];
 }
 
 // `@types/node` follows the Node major the project runs (declared version, else the kit's default
 // version), not the latest published one (ADR 0007). An alias (`lts/*`, `lts/iron`) gives
 // `ok: null`: the major is unknown, reported as such and never guessed.
-function nodeTypesStatus(pkg, target, vars) {
+function nodeTypesStatus(pkg, nvmrc, vars) {
   const types = { ...pkg.dependencies, ...pkg.devDependencies }["@types/node"];
   if (types === undefined) return null;
-  const [source, version] = declaredNode(pkg, target) ?? ["nodeVersion du kit", vars.nodeVersion];
+  const [source, version] = declaredNode(pkg, nvmrc) ?? ["nodeVersion du kit", vars.nodeVersion];
   const nodeMajor = majorOf(version);
   const ok = nodeMajor === null ? null : majorOf(types) === nodeMajor;
   return { source, nodeMajor, types, ok };
@@ -175,16 +174,42 @@ function nodeTypesStatus(pkg, target, vars) {
 
 // The local baseline must run on the CI's Node (#35). Launched from the project root, apply runs
 // with the Node that the local manager picked for the project: mise, nvm or fnm follow .nvmrc,
-// Volta did not. Reported only, never fatal: the canary runs `lts/*` on projects that declare
-// another major (#27).
-function nodeRuntimeStatus(pkg, target, running = process.versions.node) {
-  const declared = declaredNode(pkg, target);
+// Volta did not. Reported only, never fatal: a sync may run on another Node than the project's.
+function nodeRuntimeStatus(pkg, nvmrc, running = process.versions.node) {
+  const declared = declaredNode(pkg, nvmrc);
   if (!declared) return null;
   const [source, version] = declared;
   const nodeMajor = majorOf(version);
   const runningMajor = majorOf(running);
   const ok = nodeMajor === null ? null : nodeMajor === runningMajor;
   return { source, nodeMajor, running: runningMajor, ok };
+}
+
+// Vercel ignores .nvmrc and deploys the major of `engines.node` (ADR 0011). It must name the
+// declared major in a form that pins that single major (`24.x`, `^24`, `24.1.0`): a range
+// (`>=24`, `24.x || 26.x`) lets Vercel pick a newer one, and without the key it follows its
+// project setting, which lives outside the repo.
+function nodeEnginesStatus(pkg, nvmrc) {
+  const declared = declaredNode(pkg, nvmrc);
+  if (!declared) return null;
+  const [source, version] = declared;
+  const nodeMajor = majorOf(version);
+  const engines = pkg.engines?.node ?? null;
+  if (nodeMajor === null) return { source, nodeMajor, engines, ok: null };
+  const pinned = new RegExp(`^[~^]?${nodeMajor}(\\.(x|\\d+)){0,2}$`);
+  return { source, nodeMajor, engines, ok: engines !== null && pinned.test(engines.trim()) };
+}
+
+// The kit's default nodeVersion follows Node's active LTS line (ADR 0011): a project that declares
+// an older major is behind it. No network: the signal comes with the kit's version.
+function nodeLtsStatus(pkg, nvmrc, kitVersion) {
+  const declared = declaredNode(pkg, nvmrc);
+  const kitMajor = majorOf(kitVersion);
+  if (!declared || kitMajor === null) return null;
+  const [source, version] = declared;
+  const nodeMajor = majorOf(version);
+  const ok = nodeMajor === null ? null : Number(nodeMajor) >= Number(kitMajor);
+  return { source, nodeMajor, kitMajor, ok };
 }
 
 function joinFr(items) {
@@ -700,8 +725,14 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
       else commit(item.rel, await normalize(item.rel, item.content));
     }
   };
+  // A dry-run reports on the project as the sync would leave it: what it would write wins over
+  // the disk. Otherwise the disk, which post commands may have changed since (`pnpm add`).
+  const planned = new Map();
+  const projectFile = (rel) =>
+    dryRun && planned.has(rel) ? planned.get(rel) : readIfExists(path.join(target, rel));
   const commit = (rel, content) => {
     const dest = path.join(target, rel);
+    planned.set(rel, content);
     if (readIfExists(dest) === content) return report.unchanged.push(rel);
     report.written.push(rel);
     if (dryRun) return;
@@ -851,6 +882,10 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
     for (const [key, value] of Object.entries(mod.packageJson ?? {})) syncKey([key], value);
     for (const [key, value] of Object.entries(mod.scripts ?? {})) syncKey(["scripts", key], value);
   }
+  // engines.node: the major Vercel deploys, since it ignores .nvmrc (ADR 0011). Same nodeVersion
+  // as .nvmrc; an alias without a major (`lts/*`) gets no key.
+  const enginesMajor = majorOf(vars.nodeVersion);
+  if (enginesMajor) syncKey(["engines", "node"], `${enginesMajor}.x`);
   if (selected.has("husky")) syncKey(["lint-staged"], renderLintStaged(selected));
   if (pkgChanged) write("package.json", toJson(pkg), "direct");
   await flush();
@@ -902,7 +937,9 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
 
   // 5a. create-next-app installs `@types/node` at its own major (^20), not Node's (ADR 0007). A new
   //     project is aligned; an existing one is only reported (`nodeTypes`), never modified.
-  const nodeTypes = nodeTypesStatus(readJson(pkgPath), target, vars);
+  const finalPkg = JSON.parse(projectFile("package.json"));
+  const nvmrc = projectFile(".nvmrc");
+  const nodeTypes = nodeTypesStatus(finalPkg, nvmrc, vars);
   if (nodeTypes) {
     report.nodeTypes = nodeTypes;
     if (nodeTypes.ok === false && fresh) {
@@ -911,9 +948,16 @@ async function applyModules(target, mods, baseVars, { fresh, dryRun, install }) 
       if (!dryRun && install) run(cmd, target);
     }
   }
-  // Not on create: the Node running it was picked before the project existed.
-  const nodeRuntime = fresh ? null : nodeRuntimeStatus(readJson(pkgPath), target);
-  if (nodeRuntime) report.nodeRuntime = nodeRuntime;
+  // Not on create: the Node running it was picked before the project existed, and what the kit
+  // has just written is aligned by construction.
+  if (!fresh) {
+    const statuses = {
+      nodeRuntime: nodeRuntimeStatus(finalPkg, nvmrc),
+      nodeEngines: nodeEnginesStatus(finalPkg, nvmrc),
+      nodeLts: nodeLtsStatus(finalPkg, nvmrc, MANIFEST.defaults.nodeVersion),
+    };
+    for (const [key, status] of Object.entries(statuses)) if (status) report[key] = status;
+  }
 
   // 5b. Literal patches on files generated by post commands (e.g. shadcn's globals.css). A patch
   //     that no longer matches is reported, never guessed: the upstream default changed.
@@ -1078,6 +1122,8 @@ export {
   loadProjectPrettier,
   nodeTypesStatus,
   nodeRuntimeStatus,
+  nodeEnginesStatus,
+  nodeLtsStatus,
 };
 
 async function main() {
