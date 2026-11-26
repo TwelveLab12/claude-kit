@@ -2,6 +2,37 @@
 
 Chaque version est lue par `/claude-kit:sync` pour expliquer à un projet ce qui change.
 
+## 0.16.0 — 2026-11-26
+
+**Aucune action manuelle obligatoire.** Le sync ajoute `engines.node: "<majeure>.x"` à
+`package.json`, avec la majeure de `.nvmrc`, et met à jour `.claude/kit/core.md` (et
+`.claude/kit/vercel-check.md` avec `vercel-check`). Vercel suit désormais cette clé à la place du réglage Node.js Version
+du projet : si ce réglage différait de `.nvmrc`, la production change de version de Node au
+déploiement suivant. Un projet en Node 24 est signalé en retard sur la LTS (`nodeLts`) : passer en
+26 se fait dans une PR à part, avec `/claude-kit:sync node=26`.
+
+### Version de Node de la production et LTS active (#27, ADR 0011)
+
+- Vercel ne lit pas `.nvmrc` : il suivait le réglage du projet, aligné sur `.nvmrc` par coïncidence.
+  Le module `core` écrit maintenant `engines.node` à partir du même `nodeVersion` que `.nvmrc`. Un
+  alias sans majeure (`lts/*`) n'en reçoit pas.
+- Hors création, le rapport d'`apply` porte :
+  - `nodeEngines` : `engines.node` manque, ou ne fixe pas la majeure déclarée (une plage comme
+    `>=24` laisserait Vercel prendre une majeure plus récente) ;
+  - `nodeLts` : la majeure du projet est plus ancienne que le défaut du kit, qui suit la LTS active
+    de Node. Le signal arrive avec la version du kit, sans réseau.
+
+  Sync et audit les présentent. Ce ne sont jamais des échecs, et une valeur modifiée par le projet
+  n'est pas réécrite.
+- `/claude-kit:sync node=<majeure>` passe `--var nodeVersion=<majeure>` : le lock l'enregistre, et
+  `.nvmrc` et `engines.node` sont réécrits s'ils sont intacts. Un dry-run juge maintenant l'état
+  qu'aurait le projet après le sync (`nodeTypes`, `nodeRuntime`, `nodeEngines`, `nodeLts`), pas
+  celui du disque.
+- Défaut du kit : Node 26, la LTS active depuis le 28/10/2026. Un projet neuf a `.nvmrc` à 26,
+  `engines.node` à `26.x` et `@types/node` en `^26`. Un projet existant garde sa majeure (lock).
+- Canary : le projet généré est vérifié sur le Node de son `.nvmrc`, plus sur `lts/*`, dans les
+  deux jobs. Le premier job vérifie aussi que `engines.node` et `@types/node` suivent `.nvmrc`.
+
 ## 0.15.0 — 2026-11-25
 
 **Aucune action manuelle dans le projet.** Le sync met à jour `.claude/kit/core.md`,
