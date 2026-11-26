@@ -9,12 +9,18 @@ import {
   loadModules,
   loadProjectPrettier,
   makeRenderer,
+  nodeEnginesStatus,
+  nodeLtsStatus,
   nodeRuntimeStatus,
   nodeTypesStatus,
   renderCi,
   resolveSelection,
 } from "../scripts/apply.mjs";
 import { FAKES, KIT_ROOT, copyFixture, tmpDir } from "./helpers.mjs";
+
+// La majeure de Node que le kit écrit par défaut (ADR 0011) : les tests en partent, sans la figer.
+const KIT_NODE = JSON.parse(fs.readFileSync(path.join(KIT_ROOT, "modules/manifest.json"), "utf8"))
+  .defaults.nodeVersion;
 
 const render = (text, { vars = {}, selected = [] } = {}) => {
   const report = { unresolved: new Set() };
@@ -644,43 +650,64 @@ test("apply.mjs en ligne de commande : list renvoie le catalogue", () => {
 });
 
 test("nodeTypesStatus : la majeure de Node vient de volta.node, sinon .nvmrc, sinon du kit", () => {
-  const dir = copyFixture("sample");
   const pkg = { devDependencies: { "@types/node": "^20.19.0" } };
   const vars = { nodeVersion: "24" };
-  assert.equal(nodeTypesStatus({}, dir, vars), null);
-  const kit = nodeTypesStatus(pkg, dir, vars);
+  assert.equal(nodeTypesStatus({}, null, vars), null);
+  const kit = nodeTypesStatus(pkg, null, vars);
   assert.deepEqual([kit.source, kit.nodeMajor, kit.ok], ["nodeVersion du kit", "24", false]);
-  fs.writeFileSync(path.join(dir, ".nvmrc"), "v22.1.0\n");
-  const nvmrc = nodeTypesStatus(pkg, dir, vars);
+  const nvmrc = nodeTypesStatus(pkg, "v22.1.0\n", vars);
   assert.deepEqual([nvmrc.source, nvmrc.nodeMajor, nvmrc.ok], [".nvmrc", "22", false]);
-  const volta = nodeTypesStatus({ ...pkg, volta: { node: "20.19.0" } }, dir, vars);
+  const volta = nodeTypesStatus({ ...pkg, volta: { node: "20.19.0" } }, "v22.1.0\n", vars);
   assert.deepEqual([volta.source, volta.nodeMajor, volta.ok], ["volta.node", "20", true]);
 });
 
 test("nodeTypesStatus : un alias de version de Node donne ok: null, jamais la version du kit", () => {
-  const dir = copyFixture("sample");
   const pkg = { devDependencies: { "@types/node": "^20.19.0" } };
-  fs.writeFileSync(path.join(dir, ".nvmrc"), "lts/iron\n");
-  const alias = nodeTypesStatus(pkg, dir, { nodeVersion: "24" });
+  const alias = nodeTypesStatus(pkg, "lts/iron\n", { nodeVersion: "24" });
   assert.deepEqual([alias.source, alias.nodeMajor, alias.ok], [".nvmrc", null, null]);
   // Aucune majeure connue, ni pour Node ni pour les types : indéterminé, pas « aligné ».
-  fs.rmSync(path.join(dir, ".nvmrc"));
   const latest = { devDependencies: { "@types/node": "latest" } };
-  assert.equal(nodeTypesStatus(latest, dir, { nodeVersion: "lts/*" }).ok, null);
+  assert.equal(nodeTypesStatus(latest, null, { nodeVersion: "lts/*" }).ok, null);
 });
 
 test("nodeRuntimeStatus : le Node qui exécute est comparé à .nvmrc, ou à volta.node", () => {
-  const dir = copyFixture("sample");
   // Rien de déclaré : aucune comparaison, pas même avec le défaut du kit.
-  assert.equal(nodeRuntimeStatus({}, dir, "26.13.1"), null);
-  fs.writeFileSync(path.join(dir, ".nvmrc"), "24\n");
-  const gap = nodeRuntimeStatus({}, dir, "26.13.1");
+  assert.equal(nodeRuntimeStatus({}, null, "26.13.1"), null);
+  const gap = nodeRuntimeStatus({}, "24\n", "26.13.1");
   assert.deepEqual(gap, { source: ".nvmrc", nodeMajor: "24", running: "26", ok: false });
-  assert.equal(nodeRuntimeStatus({}, dir, "v24.22.3").ok, true);
-  const volta = nodeRuntimeStatus({ volta: { node: "22.1.0" } }, dir, "24.22.3");
+  assert.equal(nodeRuntimeStatus({}, "24\n", "v24.22.3").ok, true);
+  const volta = nodeRuntimeStatus({ volta: { node: "22.1.0" } }, "24\n", "24.22.3");
   assert.deepEqual([volta.source, volta.nodeMajor, volta.ok], ["volta.node", "22", false]);
-  fs.writeFileSync(path.join(dir, ".nvmrc"), "lts/*\n");
-  assert.equal(nodeRuntimeStatus({}, dir, "26.13.1").ok, null);
+  assert.equal(nodeRuntimeStatus({}, "lts/*\n", "26.13.1").ok, null);
+});
+
+test("nodeEnginesStatus : engines.node doit épingler la majeure déclarée, une plage ne suffit pas", () => {
+  const withEngines = (node) => ({ engines: { node } });
+  assert.equal(nodeEnginesStatus(withEngines("24.x"), null), null);
+  for (const pinned of ["24.x", "^24", "~24.1", "24", "24.11.0", " 24.x "]) {
+    assert.equal(nodeEnginesStatus(withEngines(pinned), "24\n").ok, true, pinned);
+  }
+  // Une plage laisse Vercel choisir une majeure plus récente ; une autre majeure diverge.
+  for (const loose of [">=24", "24.x || 26.x", "26.x", "2.x", "24-26", "*"]) {
+    assert.equal(nodeEnginesStatus(withEngines(loose), "24\n").ok, false, loose);
+  }
+  // Sans la clé, Vercel suit son réglage, hors du dépôt.
+  const absent = nodeEnginesStatus({}, "v24.1.0\n");
+  assert.deepEqual(absent, { source: ".nvmrc", nodeMajor: "24", engines: null, ok: false });
+  const volta = nodeEnginesStatus({ volta: { node: "22.1.0" }, engines: { node: "22.x" } }, null);
+  assert.deepEqual([volta.source, volta.ok], ["volta.node", true]);
+  assert.equal(nodeEnginesStatus(withEngines("24.x"), "lts/*\n").ok, null);
+});
+
+test("nodeLtsStatus : une majeure plus ancienne que le défaut du kit est en retard", () => {
+  assert.equal(nodeLtsStatus({}, null, "26"), null);
+  const behind = nodeLtsStatus({}, "24\n", "26");
+  assert.deepEqual(behind, { source: ".nvmrc", nodeMajor: "24", kitMajor: "26", ok: false });
+  assert.equal(nodeLtsStatus({}, "26.13.1\n", "26").ok, true);
+  // Comparaison numérique : « 100 » n'est pas plus ancien que « 26 ».
+  assert.equal(nodeLtsStatus({}, "100\n", "26").ok, true);
+  assert.equal(nodeLtsStatus({}, "8\n", "26").ok, false);
+  assert.equal(nodeLtsStatus({}, "lts/*\n", "26").ok, null);
 });
 
 // Le Node des tests varie (lts/* en CI) : les majeures attendues partent de celui qui tourne.
@@ -701,6 +728,66 @@ test("sync : le Node qui exécute le sync est comparé à .nvmrc, l'écart signa
   assert.equal(aligned.nodeRuntime.ok, true);
 });
 
+test("create : engines.node porte la majeure de .nvmrc, rien pour un alias", async () => {
+  const mods = resolveSelection(loadModules(), ["core"]);
+  const options = { fresh: true, dryRun: false, install: false };
+  for (const [nodeVersion, engines] of [
+    [undefined, `${KIT_NODE}.x`],
+    ["22", "22.x"],
+    ["22.11.0", "22.x"],
+    ["lts/*", undefined],
+  ]) {
+    const dir = copyFixture("sample");
+    await applyModules(dir, mods, nodeVersion ? { nodeVersion } : {}, options);
+    const pkg = JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8"));
+    assert.equal(pkg.engines?.node, engines, String(nodeVersion));
+    const nvmrc = fs.readFileSync(path.join(dir, ".nvmrc"), "utf8").trim();
+    assert.equal(nvmrc, nodeVersion ?? KIT_NODE);
+  }
+});
+
+// Passage d'un projet à la majeure du kit (ADR 0011) : la variable du lock change, .nvmrc et
+// engines.node intacts suivent, et le dry-run montre l'état d'après le sync, pas le disque.
+test("sync nodeVersion=<n> : .nvmrc et engines.node suivent, le dry-run juge l'état d'après le sync", async () => {
+  const older = String(Number(KIT_NODE) - 2);
+  const dir = copyFixture("sample");
+  const file = path.join(dir, "package.json");
+  const pkg = JSON.parse(fs.readFileSync(file, "utf8"));
+  fs.writeFileSync(file, JSON.stringify({ ...pkg, devDependencies: { "@types/node": `^${older}` } }));
+  const mods = resolveSelection(loadModules(), ["core"]);
+  const run = (nodeVersion, dryRun) =>
+    applyModules(dir, mods, { nodeVersion }, { fresh: false, dryRun, install: false });
+  await applyModules(dir, mods, { nodeVersion: older }, { fresh: true, dryRun: false, install: false });
+  const stay = await run(older, true);
+  assert.deepEqual(stay.nodeLts, { source: ".nvmrc", nodeMajor: older, kitMajor: KIT_NODE, ok: false });
+  assert.equal(stay.nodeEngines.ok, true);
+  const plan = await run(KIT_NODE, true);
+  assert.ok(plan.written.includes(".nvmrc") && plan.written.includes("package.json"));
+  assert.deepEqual([plan.nodeEngines.engines, plan.nodeEngines.ok], [`${KIT_NODE}.x`, true]);
+  assert.deepEqual([plan.nodeTypes.nodeMajor, plan.nodeTypes.ok], [KIT_NODE, false]);
+  assert.equal(plan.nodeLts.ok, true);
+  assert.equal(fs.readFileSync(path.join(dir, ".nvmrc"), "utf8").trim(), older);
+  const synced = await run(KIT_NODE, false);
+  assert.equal(fs.readFileSync(path.join(dir, ".nvmrc"), "utf8").trim(), KIT_NODE);
+  assert.equal(JSON.parse(fs.readFileSync(file, "utf8")).engines.node, `${KIT_NODE}.x`);
+  const lock = JSON.parse(fs.readFileSync(path.join(dir, ".claude/kit.lock.json"), "utf8"));
+  assert.equal(lock.vars.nodeVersion, KIT_NODE);
+  assert.deepEqual([synced.nodeEngines.ok, synced.nodeTypes.ok], [true, false]);
+});
+
+test("sync : engines.node modifié par le projet n'est pas réécrit, l'écart est signalé", async () => {
+  const dir = copyFixture("sample");
+  const file = path.join(dir, "package.json");
+  const mods = resolveSelection(loadModules(), ["core"]);
+  const options = { dryRun: false, install: false };
+  await applyModules(dir, mods, {}, { fresh: true, ...options });
+  const pkg = JSON.parse(fs.readFileSync(file, "utf8"));
+  fs.writeFileSync(file, JSON.stringify({ ...pkg, engines: { node: ">=20" } }));
+  const synced = await applyModules(dir, mods, {}, { fresh: false, ...options });
+  assert.equal(JSON.parse(fs.readFileSync(file, "utf8")).engines.node, ">=20");
+  assert.deepEqual([synced.nodeEngines.engines, synced.nodeEngines.ok], [">=20", false]);
+});
+
 test("run=volta : déprécié, signalé par le rapport, toujours géré", async () => {
   for (const [run, deprecated] of [
     ["volta", ["run=volta"]],
@@ -714,9 +801,9 @@ test("run=volta : déprécié, signalé par le rapport, toujours géré", async 
   }
 });
 
-// La majeure de Volta (22) diffère du défaut du kit (24) : le test prouve qu'elle est lue.
+// La majeure de Volta (22) diffère du défaut du kit : le test prouve qu'elle est lue.
 for (const [run, source, major] of [
-  ["pnpm", ".nvmrc", "24"],
+  ["pnpm", ".nvmrc", KIT_NODE],
   ["volta", "volta.node", "22"],
 ]) {
   test(`create (${run}) : @types/node suit ${source}, le sync signale sans modifier`, async () => {
