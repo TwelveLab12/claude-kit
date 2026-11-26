@@ -26,6 +26,6 @@
   },
   "defaults": {
     "run": "pnpm",
-    "nodeVersion": "24"
+    "nodeVersion": "26"
   }
 }
