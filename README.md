@@ -67,7 +67,7 @@ claude plugin update claude-kit@twelvelab
 | Commande | Rôle |
 | --- | --- |
 | `/claude-kit:scaffold [dossier] [description]` | Nouveau projet, ou équiper un projet existant (dry-run d'abord). Questions interactives sur les modules et options. |
-| `/claude-kit:sync [+module] [-module]` | Mettre un projet à jour vers la version courante du kit, ajouter ou retirer un module. |
+| `/claude-kit:sync [+module] [-module] [node=<majeure>]` | Mettre un projet à jour vers la version courante du kit, ajouter ou retirer un module, changer la majeure de Node ([ADR 0011](docs/adr/0011-node-version-nvmrc-engines-lts.md)). |
 | `/claude-kit:start-task <tâche>` | Issue + label de type + board « En cours » + branche `<type>/<n>-<slug>`. |
 | `/claude-kit:ship-task [--merge]` | Baseline, rebase, PR `Closes #n`, puis squash-merge, nettoyage, board « Terminé ». |
 | `/claude-kit:audit` | Dans un projet : dérive par rapport au kit. Dans ce repo : écart des modules avec l'écosystème. |
@@ -84,7 +84,7 @@ Un hook `SessionStart` signale quand un projet a été généré avec une versio
 
 | Module | Contenu |
 | --- | --- |
-| `core` (toujours) | tsconfig strict, version de Node dans `.nvmrc` (épinglage Volta dans `package.json` pour un lock en `run=volta`, déprécié), lue aussi par la CI, `.gitattributes` LF, `typecheck` avec `next typegen` |
+| `core` (toujours) | tsconfig strict, version de Node dans `.nvmrc` (épinglage Volta dans `package.json` pour un lock en `run=volta`, déprécié), lue aussi par la CI, et sa majeure dans `engines.node` pour Vercel, `.gitattributes` LF, `typecheck` avec `next typegen` |
 | `tailwind-shadcn` | Tailwind v4 + shadcn/ui. Nouveau projet : **Base UI** par défaut (défaut de shadcn) ou Radix (`uiBase`) ; projet existant : la bibliothèque installée est détectée et conservée |
 | `eslint` | flat config Next + convention `_` |
 | `prettier` | printWidth 100, plugin Tailwind, `format:check` en CI |

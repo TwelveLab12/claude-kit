@@ -1,7 +1,7 @@
 ---
 name: sync
 description: Met à jour un projet déjà équipé par claude-kit vers la version courante du kit (règles Claude, CI, configs gérées), ou ajoute/retire un module. À utiliser quand l'utilisateur demande de synchroniser le kit, quand le hook de démarrage signale un kit plus récent, ou pour ajouter un module (ex. Playwright) à un projet existant.
-argument-hint: "[+module] [-module]"
+argument-hint: "[+module] [-module] [node=<majeure>]"
 ---
 
 # /claude-kit:sync
@@ -15,8 +15,10 @@ argument-hint: "[+module] [-module]"
    et résumer les entrées concernées de `$KIT/CHANGELOG.md`. Un kit plus ancien que le lock est
    refusé par le script : faire mettre à jour le plugin, ne pas contourner.
 3. **Dry-run** :
-   `node "$KIT/scripts/apply.mjs" apply . --from-lock [--add a,b] [--remove c] --dry-run`
-   (`+x` en argument → `--add x`, `-x` → `--remove x`).
+   `node "$KIT/scripts/apply.mjs" apply . --from-lock [--add a,b] [--remove c] [--var nodeVersion=<n>] --dry-run`
+   (`+x` en argument → `--add x`, `-x` → `--remove x`, `node=<n>` → `--var nodeVersion=<n>`). Lancer
+   depuis la racine du projet. Changer la majeure de Node réécrit `.nvmrc` et `engines.node` s'ils
+   sont intacts (ADR 0011 du kit) ; le dry-run juge déjà l'état d'après le sync.
 
    Le script compare chaque fichier, bloc et clé de `package.json` à la base
    (`.claude/kit/base.json`, ce que le kit a écrit au dernier passage) et classe le résultat. Ne
@@ -56,7 +58,16 @@ argument-hint: "[+module] [-module]"
    - `nodeRuntime` : si `ok` vaut `false`, le Node qui exécute le sync (`running`) n'est pas celui
      du projet (`nodeMajor`, lu dans `source`) : la baseline locale ne tournerait pas sur la version
      de la CI. Le dire : le gestionnaire de Node du poste doit lire `.nvmrc` (README du kit). Ne rien
-     modifier dans le projet. Le contrôle ne vaut que lancé depuis la racine du projet (`apply .`) ;
+     modifier dans le projet. Le contrôle ne vaut que lancé depuis la racine du projet (`apply .`).
+     Avec `node=<n>`, un écart est attendu au dry-run : le poste passera sur la nouvelle majeure
+     une fois `.nvmrc` écrit ;
+   - `nodeEngines` : si `ok` vaut `false`, `engines.node` (`engines`) manque ou ne fixe pas la
+     majeure déclarée (`nodeMajor`, lue dans `source`) : Vercel déploierait une autre version que la
+     CI. Proposer `"engines": { "node": "<nodeMajor>.x" }`, sans l'écrire d'office : une valeur
+     modifiée par le projet n'est pas réécrite ;
+   - `nodeLts` : si `ok` vaut `false`, la majeure du projet (`nodeMajor`) est plus ancienne que le
+     défaut du kit (`kitMajor`), qui suit la LTS active de Node. Le dire, et proposer une PR à part :
+     sync `node=<kitMajor>`, `@types/node`, baseline sur cette version, aperçu Vercel validé ;
    - `deprecated` : options du lock dépréciées. `run=volta` : Volta n'est plus maintenu, le kit gère
      encore ce mode mais ne le propose plus. Le signaler, sans rien changer.
 4. **Appliquer** après accord : même commande sans `--dry-run`, puis reprendre à la main ce qui a

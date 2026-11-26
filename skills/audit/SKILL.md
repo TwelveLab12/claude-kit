@@ -20,7 +20,10 @@ description: Vérifie la fraîcheur des standards — dans un projet, l'écart a
    `ok: null` = majeure de Node indéterminée (alias comme `lts/*` dans `.nvmrc`) : le dire, sans
    proposer de version. `nodeRuntime` du même dry-run, `ok: false` = le Node local (`running`)
    n'est pas celui du projet : le gestionnaire de Node du poste doit lire `.nvmrc` (README du kit).
-   `deprecated` : options du lock dépréciées (`run=volta`), à signaler.
+   `nodeEngines`, `ok: false` = `engines.node` manque ou ne fixe pas la majeure de `.nvmrc` : Vercel
+   déploierait une autre version. `nodeLts`, `ok: false` = la majeure du projet est plus ancienne
+   que le défaut du kit, qui suit la LTS active : proposer une PR à part (`/claude-kit:sync
+   node=<kitMajor>`). `deprecated` : options du lock dépréciées (`run=volta`), à signaler.
 4. Dépendances : `pnpm outdated`. Distinguer patch/minor (Dependabot s'en charge) et **majeures**.
    Une majeure de `@types/node` plus récente que celle de Node n'est pas un retard : ne pas la
    proposer (étape 3).
@@ -31,7 +34,9 @@ description: Vérifie la fraîcheur des standards — dans un projet, l'écart a
 
 1. **Versions** : `npm view <pkg> version` pour next, create-next-app, react, typescript, eslint,
    eslint-config-next, prettier, vitest, @playwright/test, tailwindcss, shadcn, husky, lint-staged,
-   et la ligne LTS active de Node. Comparer avec ce que produit le canary.
+   et la ligne LTS active de Node. Comparer avec ce que produit le canary. Si la LTS active a
+   changé, proposer de monter `nodeVersion` de `modules/manifest.json` (ADR 0011), après avoir
+   vérifié que Vercel accepte la nouvelle majeure.
 2. **Compatibilité** : pour chaque majeure non adoptée, vérifier la compatibilité avec
    l'écosystème Next (peer deps d'`eslint-config-next`, support de TypeScript par Next…). Lire les
    notes de version / guides de migration officiels (WebFetch) : on n'adopte pas une majeure que
